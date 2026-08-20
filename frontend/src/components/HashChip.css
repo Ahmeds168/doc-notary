@@ -1,0 +1,25 @@
+.hash-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--ink-700);
+  border: 1px solid var(--ink-line);
+  color: var(--bone-100);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.hash-chip:hover {
+  border-color: var(--brass-500);
+  background: var(--ink-600);
+}
+
+.hash-chip__copy {
+  color: var(--brass-300);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}

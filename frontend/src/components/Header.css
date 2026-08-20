@@ -1,0 +1,39 @@
+.site-header {
+  border-bottom: 1px solid var(--ink-line);
+}
+
+.site-header__inner {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.site-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.site-header__mark {
+  width: 26px;
+  height: 26px;
+}
+
+.site-header__title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.1rem;
+  letter-spacing: 0.2px;
+}
+
+.site-header__badge {
+  font-size: 0.72rem;
+  color: var(--forest-300);
+  border: 1px solid var(--forest-500);
+  border-radius: 100px;
+  padding: 5px 12px;
+  letter-spacing: 0.5px;
+}

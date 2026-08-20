@@ -1,0 +1,113 @@
+.seal {
+  --seal-ink: var(--brass-500);
+  --seal-ink-light: var(--brass-300);
+  width: var(--seal-size);
+  height: var(--seal-size);
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.45));
+  transform-origin: center;
+}
+
+.seal--verified {
+  --seal-ink: var(--forest-500);
+  --seal-ink-light: var(--forest-300);
+}
+
+.seal--notfound {
+  --seal-ink: var(--rust-500);
+  --seal-ink-light: var(--rust-300);
+}
+
+.seal__svg {
+  width: 100%;
+  height: 100%;
+}
+
+.seal__outer {
+  fill: none;
+  stroke: var(--seal-ink);
+  stroke-width: 2.5;
+  opacity: 0.6;
+}
+
+.seal__ring {
+  fill: none;
+  stroke: var(--seal-ink);
+  stroke-width: 1.5;
+  opacity: 0.85;
+}
+
+.seal__core {
+  fill: var(--seal-ink);
+  opacity: 0.14;
+  stroke: var(--seal-ink);
+  stroke-width: 2;
+}
+
+.seal__ring-text {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 2px;
+  fill: var(--seal-ink-light);
+  text-transform: uppercase;
+}
+
+.seal__mark {
+  opacity: 0;
+  transform: scale(0.6);
+  transform-origin: 100px 100px;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.seal__check {
+  fill: none;
+  stroke: var(--seal-ink);
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.seal--verified .seal__mark {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* idle: slow ambient rotation of the ring text, resting */
+.seal--idle .seal__svg {
+  animation: seal-rotate 40s linear infinite;
+}
+
+@keyframes seal-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* pressing: the stamp physically presses down onto the page */
+.seal--pressing {
+  animation: seal-press 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+}
+
+@keyframes seal-press {
+  0% { transform: translateY(-6px) scale(0.98) rotate(-2deg); }
+  45% { transform: translateY(2px) scale(1.04) rotate(1deg); }
+  60% { transform: translateY(0) scale(1) rotate(0deg); }
+  100% { transform: translateY(-6px) scale(0.98) rotate(-2deg); }
+}
+
+/* verified / notfound: settle into a firm pressed impression */
+.seal--verified,
+.seal--notfound {
+  animation: seal-settle 0.5s cubic-bezier(0.2, 0.8, 0.3, 1.2);
+}
+
+@keyframes seal-settle {
+  0% { transform: translateY(-30px) scale(0.7) rotate(-8deg); opacity: 0; }
+  70% { transform: translateY(4px) scale(1.06) rotate(2deg); opacity: 1; }
+  100% { transform: translateY(0) scale(1) rotate(0deg); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seal--idle .seal__svg,
+  .seal--pressing {
+    animation: none;
+  }
+}

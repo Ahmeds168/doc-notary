@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Env files
+.env
+.env.local
+.env.*.local
+
+# Hardhat
+cache/
+artifacts/
+typechain/
+typechain-types/
+
+# Build outputs
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/

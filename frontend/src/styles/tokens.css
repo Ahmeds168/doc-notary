@@ -1,0 +1,92 @@
+:root {
+  /* Color — ink & seal palette */
+  --ink-900: #10151f;
+  --ink-800: #161d29;
+  --ink-700: #1b2330;
+  --ink-600: #26303f;
+  --ink-line: #313c4d;
+  --bone-100: #e7e4da;
+  --bone-300: #b9b6ac;
+  --bone-500: #8c8a82;
+
+  --brass-300: #d9b673;
+  --brass-500: #b8863b;
+  --brass-700: #8f6526;
+
+  --forest-300: #6e9a7c;
+  --forest-500: #3f6b4f;
+  --forest-900: #16261c;
+
+  --rust-300: #c97a5f;
+  --rust-500: #a6462c;
+  --rust-900: #2a1310;
+
+  /* Type */
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-body: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
+
+  /* Layout */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+  --content-width: 1080px;
+
+  --shadow-press: 0 12px 30px -10px rgba(0, 0, 0, 0.55);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--ink-900);
+  background-image:
+    radial-gradient(ellipse 900px 500px at 15% -10%, rgba(184, 134, 59, 0.10), transparent),
+    radial-gradient(ellipse 700px 500px at 100% 10%, rgba(63, 107, 79, 0.08), transparent);
+  color: var(--bone-100);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  color: var(--bone-100);
+  margin: 0;
+}
+
+a {
+  color: var(--brass-300);
+}
+
+button {
+  font-family: var(--font-body);
+}
+
+code, .mono {
+  font-family: var(--font-mono);
+}
+
+::selection {
+  background: var(--brass-500);
+  color: var(--ink-900);
+}
+
+:focus-visible {
+  outline: 2px solid var(--brass-300);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

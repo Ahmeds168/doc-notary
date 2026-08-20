@@ -1,0 +1,40 @@
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.ledger-section {
+  margin-top: 40px;
+  margin-bottom: 60px;
+  background: var(--ink-800);
+  border: 1px solid var(--ink-line);
+  border-radius: var(--radius-lg);
+  padding: 28px 32px;
+}
+
+@media (max-width: 640px) {
+  .ledger-section {
+    padding: 20px;
+  }
+}
+
+.site-footer {
+  margin-top: auto;
+  border-top: 1px solid var(--ink-line);
+  padding: 22px 24px;
+  max-width: var(--content-width);
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: space-between;
+  color: var(--bone-500);
+  font-size: 0.78rem;
+}
+
+.site-footer .mono {
+  color: var(--bone-500);
+}

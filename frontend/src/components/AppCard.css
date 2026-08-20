@@ -1,0 +1,41 @@
+.app-card {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.app-card__tabs {
+  display: inline-flex;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.app-card__tabs button {
+  background: transparent;
+  border: 1px solid var(--ink-line);
+  color: var(--bone-300);
+  padding: 9px 18px;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border-bottom: none;
+}
+
+.app-card__tabs button.is-active {
+  background: var(--ink-800);
+  color: var(--bone-100);
+  border-color: var(--ink-line);
+}
+
+.app-card__body {
+  background: var(--ink-800);
+  border: 1px solid var(--ink-line);
+  border-radius: 0 var(--radius-lg) var(--radius-lg) var(--radius-lg);
+  padding: 32px;
+}
+
+@media (max-width: 640px) {
+  .app-card__body {
+    padding: 20px;
+  }
+}

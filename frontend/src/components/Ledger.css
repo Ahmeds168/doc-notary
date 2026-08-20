@@ -1,0 +1,70 @@
+.ledger {
+  margin-top: 8px;
+}
+
+.ledger__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.ledger__header h3 {
+  font-size: 1.1rem;
+  color: var(--bone-100);
+}
+
+.ledger__count {
+  color: var(--bone-500);
+  font-size: 0.75rem;
+}
+
+.ledger__empty {
+  color: var(--bone-500);
+  font-size: 0.88rem;
+  padding: 20px 0;
+}
+
+.ledger__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.ledger__table th {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--bone-500);
+  font-weight: 500;
+  padding: 0 12px 10px 0;
+  border-bottom: 1px solid var(--ink-line);
+}
+
+.ledger__table td {
+  padding: 12px 12px 12px 0;
+  border-bottom: 1px solid var(--ink-700);
+  color: var(--bone-100);
+  vertical-align: middle;
+}
+
+.ledger__label {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ledger__time {
+  color: var(--bone-300);
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .ledger__table {
+    display: block;
+    overflow-x: auto;
+  }
+}
