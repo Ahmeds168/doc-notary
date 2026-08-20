@@ -15,7 +15,7 @@ app.use(cors({
 }));
 
 
-app.use(cors({ origin: config.corsOrigin }));
+
 app.use(express.json());
 
 app.get("/health", async (_req, res) => {
