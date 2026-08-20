@@ -6,6 +6,15 @@ import { getTotalNotarized } from "./lib/contract.js";
 
 const app = express();
 
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    const allowed = origin === "https://doc-notary.vercel.app" || origin.endsWith(".vercel.app");
+    callback(null, allowed);
+  },
+}));
+
+
 app.use(cors({ origin: config.corsOrigin }));
 app.use(express.json());
 
