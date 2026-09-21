@@ -152,4 +152,4 @@ in flight, forest green once verified, rust if no record is found.
 
 ## License
 
-MIT
+All rights reserved. See [LICENSE](LICENSE) for details.
