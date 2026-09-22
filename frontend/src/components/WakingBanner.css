@@ -1,0 +1,40 @@
+.waking-banner {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(184, 134, 59, 0.1);
+  border-bottom: 1px solid var(--ink-line);
+  font-size: 0.85rem;
+  color: var(--bone-100);
+}
+
+.waking-banner p {
+  margin: 0;
+}
+
+.waking-banner strong {
+  color: var(--brass-300);
+}
+
+.waking-banner__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brass-500);
+  flex-shrink: 0;
+  animation: waking-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes waking-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .waking-banner__dot {
+    animation: none;
+  }
+}
