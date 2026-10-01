@@ -37,3 +37,59 @@
   padding: 5px 12px;
   letter-spacing: 0.5px;
 }
+
+.site-header__right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.site-header__account {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.82rem;
+  color: var(--bone-300);
+}
+
+.site-header__email {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.site-header__plan {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--brass-300);
+  border: 1px solid var(--brass-700);
+  border-radius: 100px;
+  padding: 3px 9px;
+}
+
+.site-header__signout {
+  background: transparent;
+  border: 1px solid var(--ink-line);
+  color: var(--bone-300);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.site-header__signout:hover {
+  border-color: var(--brass-500);
+  color: var(--bone-100);
+}
+
+@media (max-width: 640px) {
+  .site-header__inner {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .site-header__email {
+    max-width: 140px;
+  }
+}

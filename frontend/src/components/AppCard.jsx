@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { NotarizePanel } from "./NotarizePanel.jsx";
 import { VerifyPanel } from "./VerifyPanel.jsx";
+import { AuthPanel } from "./AuthPanel.jsx";
 import "./AppCard.css";
 
-export function AppCard({ onNotarized }) {
+export function AppCard({ session, account, onNotarized }) {
   const [tab, setTab] = useState("notarize");
 
   return (
@@ -21,7 +22,13 @@ export function AppCard({ onNotarized }) {
       </div>
 
       <div className="app-card__body">
-        {tab === "notarize" ? <NotarizePanel onNotarized={onNotarized} /> : <VerifyPanel />}
+        {tab === "verify" ? (
+          <VerifyPanel />
+        ) : session ? (
+          <NotarizePanel session={session} account={account} onNotarized={onNotarized} />
+        ) : (
+          <AuthPanel reason="Sign in to notarize. Free accounts include 3 notarizations a month. Verifying a document never requires an account." />
+        )}
       </div>
     </section>
   );

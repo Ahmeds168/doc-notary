@@ -1,0 +1,44 @@
+.auth-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 420px;
+}
+
+.auth-panel__reason {
+  margin: 0;
+  color: var(--bone-300);
+  font-size: 0.9rem;
+}
+
+.auth-panel__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--bone-500);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.auth-panel__field input {
+  background: var(--ink-800);
+  border: 1.5px solid var(--ink-line);
+  border-radius: var(--radius-md);
+  color: var(--bone-100);
+  padding: 12px 14px;
+  font-size: 0.92rem;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.auth-panel__field input:focus {
+  border-color: var(--brass-500);
+  outline: none;
+}
+
+.auth-panel__note {
+  margin: 0;
+  color: var(--forest-300);
+  font-size: 0.85rem;
+}

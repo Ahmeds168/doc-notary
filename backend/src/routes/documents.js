@@ -1,156 +1,225 @@
 import { Router } from "express";
-import { upload } from "../middleware/upload.js";
-import { hashBuffer, notarizeOnChain, verifyOnChain } from "../lib/contract.js";
-import { uploadToR2, objectExists, keyForHash, getSignedDownloadUrl } from "../lib/r2.js";
-import { insertDocumentRecord, getDocumentByHash, listDocuments } from "../lib/supabase.js";
+import { planSizedUpload } from "../middleware/upload.js";
+import { requireAuth } from "../lib/auth.js";
+import { rateLimit } from "../lib/rateLimit.js";
+import { HttpError } from "../lib/errors.js";
+import { normalizeHash, parseLabel, parsePagination, sanitizeFilename } from "../lib/validation.js";
+import { describeOperation } from "../services/notarization.js";
 
-export const documentsRouter = Router();
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MIME_RE = /^[\w.+-]+\/[\w.+-]+$/;
 
-/**
- * POST /api/documents/notarize
- * Multipart form upload: field "file".
- * Hashes the file, stores it in R2 (content-addressed, deduped), notarizes the
- * hash on-chain, then indexes the result in Supabase for fast search/listing.
- */
-documentsRouter.post("/notarize", upload.single("file"), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: "No file provided. Use multipart field 'file'." });
+function withTimeout(promise, ms) {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(Object.assign(new Error("metadata timeout"), { code: "TIMEOUT" })), ms);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
+/** Only fields that are already public on-chain (or harmless) — never storage keys, filenames or owners. */
+function publicMetadata(doc) {
+  return { txHash: doc.tx_hash, blockTimestamp: Number(doc.block_timestamp) };
+}
+
+export function createDocumentsRouter({ config, store, chain, storage, auth, entitlements, notarization, log }) {
+  const router = Router();
+  const authed = requireAuth(auth, log);
+
+  const ipKey = (req) => `ip:${req.ip}`;
+  const verifyLimiter = rateLimit({ limit: config.rateLimit.verifyPerMinute, keyFn: ipKey });
+  const notarizeIpLimiter = rateLimit({ limit: config.rateLimit.notarizePerMinute * 4, keyFn: ipKey });
+  const notarizeUserLimiter = rateLimit({ limit: config.rateLimit.notarizePerMinute, keyFn: (req) => `user:${req.user.id}` });
+
+  const loadEntitlements = async (req, _res, next) => {
+    try {
+      req.entitlements = await entitlements.getEntitlements(req.user.id);
+      next();
+    } catch (err) {
+      log.error("[entitlements] lookup failed", err);
+      next(new HttpError(503, "ENTITLEMENTS_UNAVAILABLE", "Couldn't load your plan. Please try again shortly."));
     }
+  };
 
-    const { buffer, originalname, mimetype, size } = req.file;
-    const documentHash = hashBuffer(buffer);
+  // Quota + declared size are checked here, before multer reads the body into memory.
+  const preflight = async (req, _res, next) => {
+    try {
+      await notarization.preflight(req.user, req.entitlements, Number(req.get("content-length")));
+      next();
+    } catch (err) {
+      next(err);
+    }
+  };
 
-    // Guard against re-notarizing a document that's already on-chain.
-    const existingOnChain = await verifyOnChain(documentHash);
-    if (existingOnChain.exists) {
-      return res.status(409).json({
-        error: "Document already notarized.",
-        documentHash,
-        record: existingOnChain,
+  /**
+   * POST /api/documents/notarize   (auth required)
+   * multipart: file (required), label (optional — published on-chain, empty by default).
+   * 201 confirmed | 202 pending/uncertain (poll /operations/:id) | 4xx/5xx with { error, code }.
+   * Retrying the same file is idempotent: it resumes the existing operation, never sends a second tx.
+   */
+  router.post(
+    "/notarize",
+    notarizeIpLimiter,
+    authed,
+    notarizeUserLimiter,
+    loadEntitlements,
+    preflight,
+    planSizedUpload("file"),
+    async (req, res, next) => {
+      try {
+        if (!req.file) throw new HttpError(400, "NO_FILE", "No file provided. Use multipart field 'file'.");
+        const label = parseLabel(req.body?.label);
+        if (!label.ok) throw new HttpError(400, "INVALID_LABEL", "Label must be at most 64 printable characters.");
+
+        const op = await notarization.notarize({
+          user: req.user,
+          entitlements: req.entitlements,
+          label: label.value,
+          file: {
+            buffer: req.file.buffer,
+            size: req.file.size,
+            contentType: MIME_RE.test(req.file.mimetype || "") ? req.file.mimetype.slice(0, 255) : "application/octet-stream",
+            originalFilename: sanitizeFilename(req.file.originalname),
+          },
+        });
+
+        const body = describeOperation(op);
+        if (body.outcome === "failed") {
+          return res.status(502).json({ error: "The notarization transaction failed.", code: "TX_FAILED", ...body });
+        }
+        res.status(body.outcome === "confirmed" ? 201 : 202).json(body);
+      } catch (err) {
+        next(err);
+      }
+    }
+  );
+
+  /** GET /api/documents/operations/:id — owner-only status polling for pending/uncertain operations. */
+  router.get("/operations/:id", authed, async (req, res, next) => {
+    try {
+      if (!UUID_RE.test(req.params.id)) throw new HttpError(400, "INVALID_ID", "Invalid operation id.");
+      let op = await store.getOperation(req.params.id).catch((err) => {
+        log.error("[operations] lookup failed", err);
+        throw new HttpError(503, "METADATA_UNAVAILABLE", "Status is temporarily unavailable.");
       });
+      if (!op || op.user_id !== req.user.id) throw new HttpError(404, "NOT_FOUND", "Operation not found.");
+      if (op.status !== "failed" && !(op.status === "confirmed" && op.indexed)) {
+        op = await notarization.advance(op).catch(() => op);
+      }
+      res.json(describeOperation(op));
+    } catch (err) {
+      next(err);
     }
+  });
 
-    const storageKey = keyForHash(documentHash, originalname);
-    let publicUrl = null;
-    if (!(await objectExists(storageKey))) {
-      publicUrl = await uploadToR2({ key: storageKey, body: buffer, contentType: mimetype });
+  /**
+   * GET /api/documents/verify/:hash — public, unlimited by plan (rate-limited per IP for abuse only).
+   * The chain is the source of truth; Supabase metadata is optional enrichment and its outage
+   * never turns a valid proof into an error.
+   */
+  router.get("/verify/:hash", verifyLimiter, async (req, res, next) => {
+    try {
+      const documentHash = normalizeHash(req.params.hash);
+      if (!documentHash) {
+        throw new HttpError(400, "INVALID_HASH", "Invalid hash. Expected a 32-byte SHA-256 hex string.");
+      }
+
+      let onChain;
+      try {
+        onChain = await chain.verify(documentHash);
+      } catch (err) {
+        log.error("[verify] chain read failed", err);
+        throw new HttpError(503, "CHAIN_UNAVAILABLE", "The blockchain node is unreachable. Please try again shortly.");
+      }
+
+      let metadata = null;
+      let metadataStatus = "not_applicable";
+      if (onChain.exists) {
+        try {
+          const doc = await withTimeout(store.getDocumentByHash(documentHash), config.supabase.metadataTimeoutMs);
+          metadata = doc ? publicMetadata(doc) : null;
+          metadataStatus = doc ? "available" : "not_indexed";
+        } catch (err) {
+          log.warn("[verify] metadata unavailable", err);
+          metadataStatus = "unavailable";
+        }
+      }
+
+      res.json({
+        documentHash,
+        verified: onChain.exists,
+        onChain: onChain.exists ? onChain : { exists: false },
+        metadata,
+        metadataStatus,
+      });
+    } catch (err) {
+      next(err);
     }
+  });
 
-    const chainResult = await notarizeOnChain(documentHash, originalname?.slice(0, 100) ?? "");
+  /** GET /api/documents/mine — the caller's own history (plans with the history dashboard). */
+  router.get("/mine", authed, loadEntitlements, async (req, res, next) => {
+    try {
+      if (!req.entitlements.historyDashboard) {
+        throw new HttpError(403, "PLAN_REQUIRED", "The history dashboard is part of the Standard plan.", {
+          plan: req.entitlements.plan,
+        });
+      }
+      const page = parsePagination(req.query);
+      if (!page) throw new HttpError(400, "INVALID_PAGINATION", "limit and offset must be non-negative integers.");
 
-    const record = await insertDocumentRecord({
-      documentHash,
-      label: originalname,
-      submitterAddress: chainResult.submitter.toLowerCase(),
-      txHash: chainResult.txHash,
-      blockTimestamp: chainResult.blockTimestamp,
-      storageKey,
-      fileSizeBytes: size,
-      contentType: mimetype,
-    });
-
-    res.status(201).json({
-      message: "Document notarized successfully.",
-      documentHash,
-      txHash: chainResult.txHash,
-      blockNumber: chainResult.blockNumber,
-      timestamp: chainResult.blockTimestamp,
-      publicUrl,
-      record,
-    });
-  } catch (err) {
-    console.error("[POST /notarize] error:", err);
-    res.status(500).json({ error: "Failed to notarize document.", details: err.message });
-  }
-});
-
-/**
- * POST /api/documents/verify
- * Multipart form upload: field "file".
- * Hashes the uploaded file and checks on-chain (source of truth) + Supabase (metadata).
- * Use this to prove a file is unmodified / matches a prior notarization.
- */
-documentsRouter.post("/verify", upload.single("file"), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: "No file provided. Use multipart field 'file'." });
+      const { documents, total } = await store.listDocumentsForUser(req.user.id, page).catch((err) => {
+        log.error("[mine] listing failed", err);
+        throw new HttpError(503, "METADATA_UNAVAILABLE", "History is temporarily unavailable.");
+      });
+      res.json({
+        documents: documents.map((d) => ({
+          documentHash: d.document_hash,
+          label: d.label,
+          originalFilename: d.original_filename,
+          txHash: d.tx_hash,
+          timestamp: Number(d.block_timestamp),
+          fileSizeBytes: d.file_size_bytes,
+          contentType: d.content_type,
+        })),
+        total,
+        ...page,
+      });
+    } catch (err) {
+      next(err);
     }
+  });
 
-    const documentHash = hashBuffer(req.file.buffer);
-    const onChain = await verifyOnChain(documentHash);
-    const metadata = onChain.exists ? await getDocumentByHash(documentHash) : null;
+  /**
+   * GET /api/documents/:hash/download — owner-only, short-lived signed URL.
+   * Not-yours and doesn't-exist both return 404 so existence isn't leaked. Legacy rows
+   * (no owner) are not downloadable by anyone through the API.
+   */
+  router.get("/:hash/download", authed, async (req, res, next) => {
+    try {
+      const documentHash = normalizeHash(req.params.hash);
+      if (!documentHash) throw new HttpError(400, "INVALID_HASH", "Invalid hash.");
 
-    res.json({
-      documentHash,
-      verified: onChain.exists,
-      onChain,
-      metadata,
-    });
-  } catch (err) {
-    console.error("[POST /verify] error:", err);
-    res.status(500).json({ error: "Failed to verify document.", details: err.message });
-  }
-});
+      const doc = await store.getDocumentByHash(documentHash).catch((err) => {
+        log.error("[download] lookup failed", err);
+        throw new HttpError(503, "METADATA_UNAVAILABLE", "Downloads are temporarily unavailable.");
+      });
+      if (!doc || !doc.user_id || doc.user_id !== req.user.id) {
+        throw new HttpError(404, "NOT_FOUND", "Document not found.");
+      }
 
-/**
- * GET /api/documents/verify/:hash
- * Look up an already-known hash (no file upload needed) — e.g. from a shared link or QR code.
- */
-documentsRouter.get("/verify/:hash", async (req, res) => {
-  try {
-    const documentHash = req.params.hash;
-    if (!/^0x[0-9a-fA-F]{64}$/.test(documentHash)) {
-      return res.status(400).json({ error: "Invalid hash format. Expected 0x-prefixed 32-byte hex." });
+      const expiresIn = config.downloads.signedUrlTtlSeconds;
+      const url = await storage.signedDownloadUrl(doc.storage_key, {
+        expiresIn,
+        filename: doc.original_filename || `${documentHash}`,
+      });
+      res.set("Cache-Control", "no-store").json({ url, expiresInSeconds: expiresIn });
+    } catch (err) {
+      next(err);
     }
+  });
 
-    const onChain = await verifyOnChain(documentHash);
-    const metadata = onChain.exists ? await getDocumentByHash(documentHash) : null;
-
-    res.json({ documentHash, verified: onChain.exists, onChain, metadata });
-  } catch (err) {
-    console.error("[GET /verify/:hash] error:", err);
-    res.status(500).json({ error: "Failed to verify document.", details: err.message });
-  }
-});
-
-/**
- * GET /api/documents
- * List notarized documents, newest first. Optional ?submitter=0x... filter and pagination.
- */
-documentsRouter.get("/", async (req, res) => {
-  try {
-    const { submitter, limit, offset } = req.query;
-    const { data, count } = await listDocuments({
-      submitterAddress: submitter,
-      limit: limit ? Number(limit) : 50,
-      offset: offset ? Number(offset) : 0,
-    });
-
-    res.json({ documents: data, total: count });
-  } catch (err) {
-    console.error("[GET /] error:", err);
-    res.status(500).json({ error: "Failed to list documents.", details: err.message });
-  }
-});
-
-/**
- * GET /api/documents/:hash/download
- * Returns a short-lived signed URL to download the original file from R2.
- */
-documentsRouter.get("/:hash/download", async (req, res) => {
-  try {
-    const documentHash = req.params.hash;
-    const metadata = await getDocumentByHash(documentHash);
-
-    if (!metadata) {
-      return res.status(404).json({ error: "Document not found." });
-    }
-
-    const url = await getSignedDownloadUrl(metadata.storage_key);
-    res.json({ url, expiresInSeconds: 900 });
-  } catch (err) {
-    console.error("[GET /:hash/download] error:", err);
-    res.status(500).json({ error: "Failed to generate download URL.", details: err.message });
-  }
-});
+  return router;
+}

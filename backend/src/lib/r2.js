@@ -1,54 +1,57 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { config } from "../config.js";
 
-export const r2Client = new S3Client({
-  region: "auto",
-  endpoint: config.r2.endpoint,
-  credentials: {
-    accessKeyId: config.r2.accessKeyId,
-    secretAccessKey: config.r2.secretAccessKey,
-  },
-});
+/** Content-addressed storage key. No filename-derived parts, so keys leak nothing but the hash. */
+export function keyForHash(hashHex) {
+  return `documents/${hashHex}`;
+}
+
+/** RFC 6266 attachment header that is safe for any filename. */
+export function contentDisposition(filename) {
+  const fallback = (filename || "document").replace(/[^\x20-\x7e]|["\\]/g, "_");
+  return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(filename || "document")}`;
+}
 
 /**
- * Upload a file buffer to R2 under a key derived from the document hash,
- * so storage is content-addressed (same file -> same key -> no duplicates).
+ * Private R2 storage. The bucket must NOT be public: originals are only reachable through
+ * short-lived signed URLs issued after an ownership check.
  */
-export async function uploadToR2({ key, body, contentType }) {
-  await r2Client.send(
-    new PutObjectCommand({
-      Bucket: config.r2.bucket,
-      Key: key,
-      Body: body,
-      ContentType: contentType || "application/octet-stream",
-    })
-  );
+export function createStorage(config) {
+  const client = new S3Client({
+    region: "auto",
+    endpoint: config.r2.endpoint,
+    credentials: { accessKeyId: config.r2.accessKeyId, secretAccessKey: config.r2.secretAccessKey },
+  });
+  const Bucket = config.r2.bucket;
 
-  return config.r2.publicBaseUrl
-    ? `${config.r2.publicBaseUrl.replace(/\/$/, "")}/${key}`
-    : null;
-}
+  return {
+    async exists(key) {
+      try {
+        await client.send(new HeadObjectCommand({ Bucket, Key: key }));
+        return true;
+      } catch (err) {
+        if (err?.$metadata?.httpStatusCode === 404) return false;
+        throw err;
+      }
+    },
 
-/** Check whether an object already exists in R2 (used to dedupe content-addressed uploads). */
-export async function objectExists(key) {
-  try {
-    await r2Client.send(new HeadObjectCommand({ Bucket: config.r2.bucket, Key: key }));
-    return true;
-  } catch (err) {
-    if (err?.$metadata?.httpStatusCode === 404) return false;
-    throw err;
-  }
-}
+    async put(key, body, contentType) {
+      await client.send(
+        new PutObjectCommand({ Bucket, Key: key, Body: body, ContentType: contentType || "application/octet-stream" })
+      );
+    },
 
-/** Generate a short-lived signed URL for downloading a private object. */
-export async function getSignedDownloadUrl(key, expiresInSeconds = 900) {
-  const command = new GetObjectCommand({ Bucket: config.r2.bucket, Key: key });
-  return getSignedUrl(r2Client, command, { expiresIn: expiresInSeconds });
-}
+    async delete(key) {
+      await client.send(new DeleteObjectCommand({ Bucket, Key: key }));
+    },
 
-/** Build the storage key for a document from its hex hash (content-addressed). */
-export function keyForHash(hashHex, originalFilename) {
-  const ext = originalFilename?.includes(".") ? originalFilename.split(".").pop() : "";
-  return ext ? `documents/${hashHex}.${ext}` : `documents/${hashHex}`;
+    async signedDownloadUrl(key, { expiresIn, filename }) {
+      const command = new GetObjectCommand({
+        Bucket,
+        Key: key,
+        ResponseContentDisposition: contentDisposition(filename),
+      });
+      return getSignedUrl(client, command, { expiresIn });
+    },
+  };
 }

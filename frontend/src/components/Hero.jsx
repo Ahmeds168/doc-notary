@@ -12,8 +12,9 @@ export function Hero({ totalNotarized }) {
           unaltered, at this moment.
         </h1>
         <p className="hero__sub">
-          Upload any document and we hash it, seal the hash on Sepolia, and give you a
+          Notarize a document and we seal its SHA-256 fingerprint on Sepolia, giving you a
           permanent, publicly verifiable record — without ever putting the file itself on-chain.
+          Anyone can verify a file right in their browser, no upload or account needed.
         </p>
         {typeof totalNotarized === "number" && (
           <p className="hero__stat mono">{totalNotarized} documents notarized so far</p>
