@@ -4,8 +4,11 @@ import { Hero } from "./components/Hero.jsx";
 import { AppCard } from "./components/AppCard.jsx";
 import { Ledger } from "./components/Ledger.jsx";
 import { WakingBanner } from "./components/WakingBanner.jsx";
+import { ConfirmBanner } from "./components/ConfirmBanner.jsx";
 import { getStats, getMe } from "./lib/api.js";
 import { useSession } from "./lib/useSession.js";
+import { supabase } from "./lib/supabase.js";
+import { confirmEmailFromUrl } from "./lib/confirmEmail.js";
 import "./styles/tokens.css";
 import "./App.css";
 
@@ -15,6 +18,16 @@ export default function App() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [isWaking, setIsWaking] = useState(false);
   const [accountState, setAccountState] = useState({ token: null, account: null });
+  const [confirmResult, setConfirmResult] = useState(null);
+
+  // Handle /auth/confirm?token_hash=…&type=email links from the signup email.
+  useEffect(() => {
+    let active = true;
+    confirmEmailFromUrl(supabase).then((result) => active && setConfirmResult(result));
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let settled = false;
@@ -51,6 +64,7 @@ export default function App() {
   return (
     <div className="app-shell">
       <Header session={session} plan={account?.plan} />
+      {confirmResult && <ConfirmBanner result={confirmResult} onDismiss={() => setConfirmResult(null)} />}
       {isWaking && <WakingBanner />}
       <Hero totalNotarized={totalNotarized} />
       <AppCard session={session} account={account} onNotarized={() => setRefreshKey((k) => k + 1)} />

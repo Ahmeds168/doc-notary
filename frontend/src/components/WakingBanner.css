@@ -38,3 +38,17 @@
     animation: none;
   }
 }
+.confirm-banner__close {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: var(--bone-300);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.confirm-banner__close:hover {
+  color: var(--bone-100);
+}
