@@ -116,6 +116,19 @@ Supabase and sends `Authorization: Bearer <access token>`; the backend verifies 
 Supabase on every protected request. **User identity only comes from that verified token**.
 User ids, wallet addresses or other client-supplied fields are never trusted.
 
+### Confirmation emails
+
+The **Confirm signup** template (Supabase → Authentication → Emails → Templates) should link to
+this site instead of the Supabase project URL, which helps with spam filtering:
+
+```html
+<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email">Confirm my email address</a>
+```
+
+The frontend handles `/auth/confirm`: it verifies the token with `supabase.auth.verifyOtp`,
+signs the user in and shows a banner. **Site URL** must be `https://doc-notary.vercel.app`.
+Production email needs custom SMTP. Supabase's built-in sender only delivers to your own team members.
+
 ### Plans and quotas
 
 | | Free | Standard |
