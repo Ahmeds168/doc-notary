@@ -1,6 +1,7 @@
+import { supabase } from "../lib/supabase.js";
 import "./Header.css";
 
-export function Header() {
+export function Header({ session, plan }) {
   return (
     <header className="site-header">
       <div className="site-header__inner">
@@ -11,7 +12,20 @@ export function Header() {
           </svg>
           <span className="site-header__title">Document Notary</span>
         </div>
-        <span className="site-header__badge mono">Sepolia Testnet</span>
+        <div className="site-header__right">
+          {session && (
+            <div className="site-header__account">
+              <span className="site-header__email" title={session.user.email}>
+                {session.user.email}
+              </span>
+              {plan && <span className="site-header__plan mono">{plan}</span>}
+              <button type="button" className="site-header__signout" onClick={() => supabase?.auth.signOut()}>
+                Sign out
+              </button>
+            </div>
+          )}
+          <span className="site-header__badge mono">Sepolia Testnet</span>
+        </div>
       </div>
     </header>
   );

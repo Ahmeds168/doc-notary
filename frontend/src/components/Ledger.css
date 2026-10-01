@@ -68,3 +68,18 @@
     overflow-x: auto;
   }
 }
+
+.ledger__download {
+  background: transparent;
+  border: 1px solid var(--ink-line);
+  color: var(--bone-300);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.ledger__download:hover {
+  border-color: var(--brass-500);
+  color: var(--bone-100);
+}

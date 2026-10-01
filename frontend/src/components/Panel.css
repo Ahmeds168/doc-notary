@@ -173,3 +173,55 @@
     order: -1;
   }
 }
+
+.panel__usage {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--bone-500);
+}
+
+.panel__notice {
+  background: var(--ink-700);
+  border: 1px solid var(--ink-line);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--bone-300);
+}
+
+.panel__notice strong {
+  color: var(--bone-100);
+  font-weight: 600;
+}
+
+.panel__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--bone-300);
+  cursor: pointer;
+}
+
+.panel__checkbox input {
+  accent-color: var(--brass-500);
+}
+
+.panel__label-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.panel__warning {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--brass-300);
+}
+
+.panel__muted {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--bone-500);
+}

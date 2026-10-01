@@ -9,6 +9,12 @@ export async function sha256Hex(file) {
   return `0x${hex}`;
 }
 
+/** Accepts 0x-prefixed or bare 64-char hex in any case; returns lowercase 0x form or null. */
+export function normalizeHash(input) {
+  const match = /^(0x)?([0-9a-fA-F]{64})$/.exec(String(input ?? "").trim());
+  return match ? `0x${match[2].toLowerCase()}` : null;
+}
+
 export function truncateHash(hash, chars = 6) {
   if (!hash) return "";
   return `${hash.slice(0, 2 + chars)}…${hash.slice(-chars)}`;

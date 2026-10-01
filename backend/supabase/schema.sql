@@ -1,4 +1,6 @@
--- Decentralized Document Notary — Supabase schema
+-- Decentralized Document Notary — Supabase schema (baseline)
+-- Apply this first, then every file in migrations/ in order. Migration 001 replaces the
+-- public read policy below with an owner-only policy.
 -- This table indexes on-chain notarization records for fast search/listing.
 -- The blockchain remains the source of truth for verification; this table
 -- is a queryable cache/enrichment layer (filenames, storage keys, etc.)

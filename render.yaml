@@ -4,9 +4,11 @@ services:
     runtime: node
     rootDir: backend
     plan: free
-    buildCommand: npm install
+    buildCommand: npm ci --omit=dev
     startCommand: npm start
     envVars:
+      - key: NODE_ENV
+        value: production
       - key: PORT
         value: 4000
       - key: CORS_ORIGIN
@@ -18,8 +20,6 @@ services:
       - key: R2_SECRET_ACCESS_KEY
         sync: false
       - key: R2_BUCKET_NAME
-        sync: false
-      - key: R2_PUBLIC_BASE_URL
         sync: false
       - key: SUPABASE_URL
         sync: false
@@ -33,3 +33,9 @@ services:
         sync: false
       - key: MAX_FILE_SIZE_BYTES
         value: 26214400
+      - key: RELAYER_DAILY_BUDGET_ETH
+        value: "0.05"
+      - key: RELAYER_MAX_TX_COST_ETH
+        value: "0.002"
+      - key: TRUST_PROXY
+        value: 1
