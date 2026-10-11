@@ -1,6 +1,7 @@
-// Operator tool: set a user's plan until the Kelviq sync is wired up.
+// Operator tool: set a user's plan by hand.
 //   node scripts/set-plan.js <user-uuid> <free|standard>
-// Uses the same store.setUserPlan() path the future Kelviq webhook will call (source "kelviq").
+// Writes plan_source = 'manual', an override that the Kelviq sync never replaces.
+// To hand the user back to Kelviq, set plan_source to 'kelviq' in profiles.
 import "dotenv/config";
 import { createClient } from "@supabase/supabase-js";
 import { createStore } from "../src/lib/supabase.js";

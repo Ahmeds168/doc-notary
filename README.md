@@ -232,6 +232,8 @@ Key properties:
 | `GET /api/documents/verify/:hash` | – | hash: 64 hex chars, `0x` optional, any case |
 | `GET /api/documents/mine?limit&offset` | ✓ Standard | own history (`limit` ≤ 50) |
 | `GET /api/documents/:hash/download` | ✓ owner | `{ url, expiresInSeconds }` |
+| `POST /api/billing/checkout` | ✓ | billing only: `{ interval }` → `{ checkoutUrl, checkoutSessionId }` |
+| `POST /api/billing/webhooks/kelviq` | signature | billing only: Kelviq webhooks |
 
 Errors are `{ "error": "<safe message>", "code": "<CODE>" }`. Internal error details are
 logged (with secrets redacted), never returned. Removed: `POST /api/documents/verify` (file
@@ -283,7 +285,18 @@ values are never logged. See `backend/.env.example` for every option and its def
 | `RELAYER_DAILY_BUDGET_ETH` / `RELAYER_MAX_TX_COST_ETH` | | spend limits (defaults 0.05 / 0.002) |
 | `RATE_LIMIT_NOTARIZE_PER_MINUTE` / `RATE_LIMIT_VERIFY_PER_MINUTE` | | burst limits (5 / 60) |
 | `MAX_FILE_SIZE_BYTES` | | operator ceiling; plans can only be lower |
-| `ENTITLEMENTS_PROVIDER` | | `local` (default) or `kelviq` (not implemented, see below) |
+| `BILLING_ENABLED` | | `true` turns on Kelviq billing (default `false`: plans come from `profiles.plan` only) |
+| `KELVIQ_API_KEY` | billing | server-side Kelviq API key. Backend-only, redacted from logs |
+| `KELVIQ_ENV` | | `sandbox` (default) or `production` |
+| `KELVIQ_WEBHOOK_SECRET` | billing | signing secret of the Kelviq webhook endpoint |
+| `KELVIQ_STANDARD_PLAN_ID` | | Kelviq plan identifier for Standard (default `standard-plan`) |
+| `KELVIQ_STANDARD_FEATURE_ID` | billing | Kelviq feature attached to the Standard plan; `hasAccess` on it = Standard |
+| `FRONTEND_URL` | billing | where checkout returns to, e.g. `https://doc-notary.vercel.app` |
+| `KELVIQ_TIMEOUT_MS` / `KELVIQ_CACHE_TTL_MS` / `KELVIQ_WEBHOOK_TOLERANCE_SECONDS` | | 5000 / 60000 / 300 |
+| `ENTITLEMENTS_PROVIDER` | | `local` or `kelviq`. Defaults to `kelviq` when billing is enabled and configured |
+
+"billing" = required when `BILLING_ENABLED=true`. In production a missing one stops the server
+from starting. Elsewhere billing is just disabled with a warning.
 
 ### Frontend (`frontend/.env`, Vercel env vars)
 
@@ -318,21 +331,53 @@ Render auto-deploys `main`, so **do these before merging**:
    `R2_PUBLIC_BASE_URL`. Optionally set the relayer limits.
 4. Vercel: set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
 5. Cloudflare: confirm the R2 bucket has public access (r2.dev / custom domain) **disabled**.
-6. Merge. To give someone Standard until billing is wired: `cd backend && node scripts/set-plan.js <user-uuid> standard`.
+6. Merge. To give someone Standard by hand (an override Kelviq never replaces): `cd backend && node scripts/set-plan.js <user-uuid> standard`.
 
 ---
 
-## Kelviq billing (integration point, not yet wired)
+## Billing (Kelviq)
 
-`profiles.plan` is the synced plan value. `backend/src/lib/entitlements.js` has a clearly marked
-**KELVIQ INTEGRATION POINT** describing the three steps:
+Kelviq is the merchant of record and the **source of truth for which plan a user is on**.
+Nothing else moves to Kelviq: limits stay in `PLAN_CATALOG` and quota counting stays in
+Postgres (`reserve_notarization`). No usage is reported to Kelviq meters. With
+`BILLING_ENABLED=false` (the default) none of this runs.
 
-1. implement `createKelviqEntitlementProvider()` against Kelviq's entitlement API;
-2. add a signature-verified webhook that calls `store.setUserPlan(userId, plan, "kelviq", customerId)`;
-3. set `ENTITLEMENTS_PROVIDER=kelviq`.
+- **Customer id** = the Supabase user id (`auth.users.id`).
+- **Standard** is the Kelviq plan `KELVIQ_STANDARD_PLAN_ID` (`standard-plan`), sold at $5/month
+  or $50/year. Attach a boolean feature to it in Kelviq and set `KELVIQ_STANDARD_FEATURE_ID`.
+  A user is on Standard when Kelviq's entitlements say `hasAccess` for that feature.
+  Cancellations, expiries and failed renewals are therefore Kelviq's call, not ours.
+- **Plan lookups** (`createKelviqEntitlementProvider` in `backend/src/lib/entitlements.js`)
+  read `GET edge…/api/v1/entitlements?customer_id=<user id>`, cache the result per instance for
+  `KELVIQ_CACHE_TTL_MS`, and write changes through to `profiles.plan` (`plan_source = 'kelviq'`).
+  If Kelviq is unreachable the last synced `profiles.plan` is used, so an outage never
+  downgrades anyone. A plan set with `scripts/set-plan.js` (`plan_source = 'manual'`) is an
+  operator override that Kelviq never replaces.
+- **Checkout**: `POST /api/billing/checkout` `{ "interval": "monthly" | "yearly" }` (signed in)
+  makes sure the Kelviq customer exists with the user's email, creates a checkout session for
+  `standard-plan` and returns `{ checkoutUrl, checkoutSessionId }`. Redirect the browser to
+  `checkoutUrl`. It returns to `FRONTEND_URL/?checkout=success` or `?checkout=cancelled`.
+  Already on Standard → `409 ALREADY_SUBSCRIBED`.
+- **Webhooks**: register `https://<backend>/api/billing/webhooks/kelviq` in Kelviq for the
+  subscription and checkout events. Each delivery is verified
+  (`webhook-signature: v1,<hex HMAC-SHA256 of "<webhook-id>.<webhook-timestamp>.<raw body>">`,
+  timestamp within `KELVIQ_WEBHOOK_TOLERANCE_SECONDS`). The event is only used to find
+  the customer: the plan is then re-read from Kelviq. That makes delivery order, retries
+  and duplicates harmless. Invalid signature → `400`. Kelviq unreachable → `503` (Kelviq retries).
+- `GET /api/me` includes `billing.available` so the frontend can show an upgrade button.
 
-Usage counting stays in Postgres either way. `backend/scripts/set-plan.js` uses the same
-`setUserPlan()` path for manual changes until then.
+### Turning billing on
+
+1. Kelviq **sandbox**: create the `standard-plan` plan (monthly $5, yearly $50) with a boolean
+   feature, register the webhook URL, and copy the sandbox API key and webhook secret.
+2. Render: set `BILLING_ENABLED=true`, `KELVIQ_API_KEY`, `KELVIQ_WEBHOOK_SECRET`,
+   `KELVIQ_STANDARD_FEATURE_ID`, `FRONTEND_URL` (leave `KELVIQ_ENV` unset = sandbox).
+3. Test a checkout with a sandbox card, then a cancellation, and watch `profiles.plan`.
+4. Going live: switch to the production key, secret and webhook and set `KELVIQ_ENV=production`.
+   (The server warns at startup if production runs against the sandbox.)
+
+No migration is needed: `profiles.plan_source = 'kelviq'` and `profiles.billing_customer_id`
+already exist from migration 001.
 
 ---
 

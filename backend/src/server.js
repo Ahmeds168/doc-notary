@@ -7,6 +7,7 @@ import { createStorage } from "./lib/r2.js";
 import { createSupabaseClient, createStore } from "./lib/supabase.js";
 import { createAuthVerifier } from "./lib/auth.js";
 import { createEntitlements } from "./lib/entitlements.js";
+import { createKelviqClient } from "./lib/kelviq.js";
 import { createLogger, createRedactor } from "./lib/errors.js";
 import { createNotarizationService, createRelayerCoordinator } from "./services/notarization.js";
 
@@ -27,7 +28,15 @@ const store = createStore(supabase);
 const chain = createChainClient(config);
 const storage = createStorage(config);
 const auth = createAuthVerifier(supabase);
-const entitlements = createEntitlements({ store, config });
+const kelviq = config.billing.configured
+  ? createKelviqClient({
+      apiKey: config.billing.kelviq.apiKey,
+      environment: config.billing.kelviq.environment,
+      timeoutMs: config.billing.kelviq.timeoutMs,
+    })
+  : null;
+if (kelviq) log.info(`[billing] Kelviq billing enabled (${kelviq.environment})`);
+const entitlements = createEntitlements({ store, config, kelviq, log });
 const relayer = createRelayerCoordinator({
   store,
   holderId: `${process.env.RENDER_INSTANCE_ID || "instance"}:${randomUUID()}`,
@@ -36,7 +45,7 @@ const relayer = createRelayerCoordinator({
 });
 const notarization = createNotarizationService({ store, chain, storage, config, log, relayer });
 
-const app = createApp({ config, store, chain, storage, auth, entitlements, notarization, log });
+const app = createApp({ config, store, chain, storage, auth, entitlements, notarization, kelviq, log });
 
 app.listen(config.port, () => {
   log.info(`doc-notary backend listening on port ${config.port}`);

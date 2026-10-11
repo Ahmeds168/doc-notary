@@ -30,12 +30,13 @@ export async function createPgStore() {
   const store = {
     getProfile: guard("getProfile", (userId) => one("select id, plan, plan_source from profiles where id = $1", [userId])),
 
-    setUserPlan: guard("setUserPlan", (userId, plan, source) =>
+    setUserPlan: guard("setUserPlan", (userId, plan, source, billingCustomerId = null) =>
       one(
-        `insert into profiles (id, plan, plan_source) values ($1, $2, $3)
-         on conflict (id) do update set plan = excluded.plan, plan_source = excluded.plan_source, plan_updated_at = now()
+        `insert into profiles (id, plan, plan_source, billing_customer_id) values ($1, $2, $3, $4)
+         on conflict (id) do update set plan = excluded.plan, plan_source = excluded.plan_source, plan_updated_at = now(),
+           billing_customer_id = coalesce(excluded.billing_customer_id, profiles.billing_customer_id)
          returning *`,
-        [userId, plan, source]
+        [userId, plan, source, billingCustomerId]
       )
     ),
 

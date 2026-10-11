@@ -1,6 +1,7 @@
 import { loadConfig } from "../../src/config.js";
 import { createApp } from "../../src/app.js";
 import { createEntitlements } from "../../src/lib/entitlements.js";
+import { createKelviqClient } from "../../src/lib/kelviq.js";
 import { createNotarizationService, createRelayerCoordinator } from "../../src/services/notarization.js";
 import { createPgStore } from "./pgStore.js";
 import { createFakeAuth, createFakeChain, createFakeStorage, silentLogger } from "./fakes.js";
@@ -27,14 +28,18 @@ export const TEST_ENV = Object.freeze({
   RELAYER_LEASE_WAIT_MS: "2000",
 });
 
-export async function createHarness({ env = {}, chainOptions } = {}) {
+export async function createHarness({ env = {}, chainOptions, kelviqFetch } = {}) {
   const config = loadConfig({ ...TEST_ENV, ...env });
   const pg = await createPgStore();
   const chain = createFakeChain(chainOptions);
   const storage = createFakeStorage();
   const auth = createFakeAuth();
   const log = silentLogger();
-  const entitlements = createEntitlements({ store: pg.store, config });
+  // Kelviq is only ever reached through an injected fake fetch in tests.
+  const kelviq = config.billing.configured
+    ? createKelviqClient({ apiKey: config.billing.kelviq.apiKey, environment: config.billing.kelviq.environment, fetch: kelviqFetch })
+    : null;
+  const entitlements = createEntitlements({ store: pg.store, config, kelviq, log });
   const relayer = createRelayerCoordinator({
     store: pg.store,
     holderId: "test-instance",
@@ -43,14 +48,14 @@ export async function createHarness({ env = {}, chainOptions } = {}) {
     sleep: (ms) => new Promise((r) => setTimeout(r, Math.min(ms, 5))),
   });
   const notarization = createNotarizationService({ store: pg.store, chain, storage, config, log, relayer });
-  const app = createApp({ config, store: pg.store, chain, storage, auth, entitlements, notarization, log });
+  const app = createApp({ config, store: pg.store, chain, storage, auth, entitlements, notarization, kelviq, log });
 
   async function signUp(plan = "free") {
     const user = await pg.createUser(undefined, plan);
     return { user, token: auth.issue(user) };
   }
 
-  return { app, config, pg, store: pg.store, chain, storage, auth, log, notarization, signUp };
+  return { app, config, pg, store: pg.store, chain, storage, auth, log, notarization, entitlements, signUp };
 }
 
 export function fileBuffer(text) {

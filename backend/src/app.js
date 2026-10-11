@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import { createDocumentsRouter } from "./routes/documents.js";
+import { createBillingRouter } from "./routes/billing.js";
 import { requireAuth } from "./lib/auth.js";
 import { HttpError } from "./lib/errors.js";
 import { startOfUtcMonth } from "./lib/supabase.js";
@@ -17,7 +18,7 @@ export function isOriginAllowed(origin, corsConfig) {
  * Build the Express app from injected dependencies, so tests can run it against mocks
  * (no live chain, R2 or Supabase).
  */
-export function createApp({ config, store, chain, storage, auth, entitlements, notarization, log }) {
+export function createApp({ config, store, chain, storage, auth, entitlements, notarization, kelviq, log }) {
   const app = express();
   app.disable("x-powered-by");
   app.set("trust proxy", config.trustProxy);
@@ -31,6 +32,10 @@ export function createApp({ config, store, chain, storage, auth, entitlements, n
       maxAge: 600,
     })
   );
+  // Billing comes before the JSON parser: the Kelviq webhook verifies the raw body.
+  if (config.billing.enabled) {
+    app.use("/api/billing", createBillingRouter({ config, auth, entitlements, kelviq, log }));
+  }
   app.use(express.json({ limit: "16kb" }));
 
   app.get("/health", (_req, res) => {
@@ -58,6 +63,7 @@ export function createApp({ config, store, chain, storage, auth, entitlements, n
         plan: ent.plan,
         entitlements: ent,
         usage: { used, limit: ent.monthlyNotarizations, periodStart: startOfUtcMonth().toISOString() },
+        billing: { available: config.billing.configured },
       });
     } catch (err) {
       log.error("[me] lookup failed", err);

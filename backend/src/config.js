@@ -71,12 +71,65 @@ function boolVar(env, name, fallback) {
   return ["1", "true", "yes"].includes(String(raw).toLowerCase());
 }
 
+const BILLING_REQUIRED = ["KELVIQ_API_KEY", "KELVIQ_WEBHOOK_SECRET", "KELVIQ_STANDARD_FEATURE_ID", "FRONTEND_URL"];
+
+/**
+ * Kelviq billing. Off by default (BILLING_ENABLED=false) so the app runs unchanged without it.
+ * With billing on, a missing variable stops a production server from starting; elsewhere it
+ * only disables billing with a warning, so local development keeps working.
+ */
+function loadBilling(env, nodeEnv, problems, warnings) {
+  const enabled = boolVar(env, "BILLING_ENABLED", false);
+  const environment = (env.KELVIQ_ENV || "sandbox").trim();
+  if (!["sandbox", "production"].includes(environment)) problems.push(`KELVIQ_ENV must be "sandbox" or "production"`);
+
+  let frontendUrl;
+  if (env.FRONTEND_URL) {
+    try {
+      const url = new URL(env.FRONTEND_URL);
+      if (!["http:", "https:"].includes(url.protocol)) throw new Error("protocol");
+      if (nodeEnv === "production" && url.protocol !== "https:") problems.push("FRONTEND_URL must use https in production");
+      frontendUrl = url.origin + url.pathname.replace(/\/+$/, "");
+    } catch {
+      problems.push("FRONTEND_URL must be a valid http(s) URL");
+    }
+  }
+
+  const missing = enabled ? BILLING_REQUIRED.filter((name) => !env[name] || !String(env[name]).trim()) : [];
+  if (missing.length && nodeEnv === "production") {
+    for (const name of missing) problems.push(`${name} is required when BILLING_ENABLED=true`);
+  } else if (missing.length) {
+    warnings.push(`BILLING_ENABLED=true but ${missing.join(", ")} not set; billing is disabled.`);
+  }
+  if (enabled && !missing.length && nodeEnv === "production" && environment === "sandbox") {
+    warnings.push("Billing is using the Kelviq SANDBOX in production (set KELVIQ_ENV=production to take real payments).");
+  }
+
+  return {
+    enabled,
+    // Enabled AND fully configured: the only flag routes and providers should look at.
+    configured: enabled && !missing.length,
+    frontendUrl,
+    kelviq: {
+      environment,
+      apiKey: env.KELVIQ_API_KEY?.trim(),
+      webhookSecret: env.KELVIQ_WEBHOOK_SECRET?.trim(),
+      standardPlanId: (env.KELVIQ_STANDARD_PLAN_ID || "standard-plan").trim(),
+      standardFeatureId: env.KELVIQ_STANDARD_FEATURE_ID?.trim(),
+      timeoutMs: intVar(env, "KELVIQ_TIMEOUT_MS", 5000, problems, { min: 500, max: 60000 }),
+      cacheTtlMs: intVar(env, "KELVIQ_CACHE_TTL_MS", 60_000, problems, { max: 3_600_000 }),
+      webhookToleranceSeconds: intVar(env, "KELVIQ_WEBHOOK_TOLERANCE_SECONDS", 300, problems, { min: 30, max: 3600 }),
+    },
+  };
+}
+
 /**
  * Build and validate configuration. Throws ConfigError (listing variable names only)
  * so the server refuses to start half-configured.
  */
 export function loadConfig(env = process.env) {
   const problems = [];
+  const warnings = [];
   for (const name of REQUIRED) {
     if (!env[name] || !String(env[name]).trim()) problems.push(`${name} is required`);
   }
@@ -163,14 +216,17 @@ export function loadConfig(env = process.env) {
       staleAfterMs: intVar(env, "RECONCILE_STALE_AFTER_MS", 10 * 60_000, problems, { min: 1000 }),
     },
 
-    entitlements: {
-      // "local" reads profiles.plan. "kelviq" is the future billing integration seam.
-      provider: env.ENTITLEMENTS_PROVIDER || "local",
-    },
+    billing: loadBilling(env, nodeEnv, problems, warnings),
   };
 
+  config.entitlements = {
+    // "local" reads profiles.plan; "kelviq" asks Kelviq (default whenever billing is on).
+    provider: env.ENTITLEMENTS_PROVIDER || (config.billing.configured ? "kelviq" : "local"),
+  };
   if (!["local", "kelviq"].includes(config.entitlements.provider)) {
     problems.push(`ENTITLEMENTS_PROVIDER must be "local" or "kelviq"`);
+  } else if (config.entitlements.provider === "kelviq" && !config.billing.configured) {
+    problems.push("ENTITLEMENTS_PROVIDER=kelviq requires BILLING_ENABLED=true and the KELVIQ_* variables");
   }
   if (config.relayer.maxTxCostWei > config.relayer.dailyBudgetWei) {
     problems.push("RELAYER_MAX_TX_COST_ETH must not exceed RELAYER_DAILY_BUDGET_ETH");
@@ -178,7 +234,7 @@ export function loadConfig(env = process.env) {
 
   if (problems.length) throw new ConfigError(problems);
 
-  config.warnings = [];
+  config.warnings = warnings;
   if (env.R2_PUBLIC_BASE_URL) {
     config.warnings.push(
       "R2_PUBLIC_BASE_URL is set but ignored: originals are private and only served through authenticated, short-lived signed URLs. Make sure the bucket has no public access."
@@ -195,5 +251,7 @@ export function secretValues(config) {
     config.supabase.serviceRoleKey,
     config.chain.privateKey,
     config.chain.rpcUrl, // RPC URLs usually embed an API key
+    config.billing.kelviq.apiKey,
+    config.billing.kelviq.webhookSecret,
   ].filter((v) => typeof v === "string" && v.length >= 8);
 }
