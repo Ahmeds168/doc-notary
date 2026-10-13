@@ -73,7 +73,6 @@ export default function App() {
       </section>
       <footer className="site-footer">
         <span>Document Notary — an on-chain proof-of-existence tool</span>
-        <span className="mono">Vercel · Render · Supabase · Cloudflare R2 · Sepolia</span>
       </footer>
     </div>
   );
