@@ -32,8 +32,11 @@ describe("VerifyPanel (browser-side verification)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Verify" }));
 
     await screen.findByText(/Record found/);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0];
+    // The panel also loads public network details; none of its requests may carry the file.
+    for (const [, reqInit] of fetchMock.mock.calls) expect(reqInit?.body).toBeUndefined();
+    const verifyCalls = fetchMock.mock.calls.filter(([u]) => String(u).includes("/api/documents/verify/"));
+    expect(verifyCalls).toHaveLength(1);
+    const [url, init] = verifyCalls[0];
     expect(url).toMatch(new RegExp(`/api/documents/verify/${expected}$`));
     // No request body, no FormData, no File/Blob, no filename anywhere in the request.
     expect(init?.body).toBeUndefined();
@@ -41,6 +44,7 @@ describe("VerifyPanel (browser-side verification)", () => {
     const serialized = JSON.stringify([url, init ?? null]);
     expect(serialized).not.toContain("minutes.pdf");
     expect(serialized).not.toContain(content);
+    expect(JSON.stringify(fetchMock.mock.calls)).not.toContain("minutes.pdf");
 
     // Metadata outage is surfaced, but the proof still shows as found.
     expect(screen.getByText(/temporarily unavailable/)).toBeTruthy();

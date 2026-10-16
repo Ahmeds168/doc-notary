@@ -4,8 +4,8 @@ import { VerifyPanel } from "./VerifyPanel.jsx";
 import { AuthPanel } from "./AuthPanel.jsx";
 import "./AppCard.css";
 
-export function AppCard({ session, account, onNotarized }) {
-  const [tab, setTab] = useState("notarize");
+export function AppCard({ session, account, onNotarized, verifyRoute = null }) {
+  const [tab, setTab] = useState(verifyRoute ? "verify" : "notarize");
 
   return (
     <section className="app-card">
@@ -23,7 +23,7 @@ export function AppCard({ session, account, onNotarized }) {
 
       <div className="app-card__body">
         {tab === "verify" ? (
-          <VerifyPanel />
+          <VerifyPanel initialHash={verifyRoute?.hash ?? null} invalidLink={verifyRoute?.invalid ?? null} />
         ) : session ? (
           <NotarizePanel session={session} account={account} onNotarized={onNotarized} />
         ) : (
