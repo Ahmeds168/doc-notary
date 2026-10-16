@@ -82,9 +82,9 @@ export function Ledger({ session, account, refreshKey }) {
                 <td className="ledger__time">{formatTimestamp(doc.timestamp)}</td>
                 <td className="ledger__actions">
                   <button type="button" className="ledger__download" onClick={() => download(doc.documentHash)}>
-                    Download
+                    Original file
                   </button>
-                  <CertificateButton hash={doc.documentHash} token={token} className="ledger__download" label="Certificate" />
+                  <CertificateButton hash={doc.documentHash} token={token} className="ledger__download" label="Certificate (PDF)" />
                 </td>
               </tr>
             ))}

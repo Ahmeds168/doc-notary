@@ -68,7 +68,9 @@ describe("Ledger certificate button", () => {
         refreshKey={0}
       />
     );
-    fireEvent.click(await screen.findByRole("button", { name: "Certificate" }));
+    // The original-file button is labelled distinctly so the two downloads aren't confused.
+    expect(await screen.findByRole("button", { name: "Original file" })).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: "Certificate (PDF)" }));
     await waitFor(() => expect(downloads).toHaveLength(1));
     const call = fetchMock.mock.calls.find(([url]) => String(url).includes("/certificate"));
     expect(call[0]).toMatch(new RegExp(`/api/documents/${HASH}/certificate$`));

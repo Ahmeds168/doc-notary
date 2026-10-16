@@ -245,7 +245,7 @@ upload) and the public `GET /api/documents` listing, which exposed hashes, filen
 ## Certificates
 
 Owners can download a one-page **Proof of Existence Certificate** (PDF) for any confirmed
-notarization: the **Download certificate** button on a confirmed result, or **Certificate** on
+notarization: the **Download certificate** button on a confirmed result, or **Certificate (PDF)** on
 each row of the history. It is generated on request (pdfkit with standard fonts, plus a QR code)
 and never stored.
 
