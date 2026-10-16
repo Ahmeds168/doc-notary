@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dropzone } from "./Dropzone.jsx";
 import { Seal } from "./Seal.jsx";
 import { HashChip } from "./HashChip.jsx";
 import { verifyHash } from "../lib/api.js";
 import { sha256Hex, normalizeHash, truncateHash, truncateAddress, formatTimestamp } from "../lib/hash.js";
+import { useNetwork, explorerTxUrl, explorerAddressUrl } from "../lib/useNetwork.js";
 import "./Panel.css";
 
 const METADATA_NOTES = {
@@ -11,20 +12,32 @@ const METADATA_NOTES = {
   not_indexed: "The on-chain proof above is complete. This record isn't in our index (it may predate it or still be syncing).",
 };
 
-export function VerifyPanel() {
-  const [mode, setMode] = useState("file"); // "file" | "hash"
+function isoUtc(unixSeconds) {
+  return new Date(unixSeconds * 1000).toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
+/**
+ * `initialHash` comes from a public /verify/:hash link: the panel opens in "Paste hash" mode,
+ * pre-filled, and runs the check once. `invalidLink` is set when that link held no valid hash.
+ */
+export function VerifyPanel({ initialHash = null, invalidLink = null }) {
+  const [mode, setMode] = useState(initialHash || invalidLink ? "hash" : "file"); // "file" | "hash"
   const [file, setFile] = useState(null);
-  const [hashInput, setHashInput] = useState("");
+  const [hashInput, setHashInput] = useState(initialHash ?? invalidLink ?? "");
   const [status, setStatus] = useState("idle"); // idle | hashing | checking | verified | notfound | error
   const [result, setResult] = useState(null);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState(invalidLink ? "That link doesn't contain a valid document hash." : null);
+  const network = useNetwork();
+  const autoRan = useRef(false);
 
-  const runVerify = async () => {
+  const runVerify = async (overrideHash) => {
     setError(null);
     setResult(null);
     try {
       let hash;
-      if (mode === "file") {
+      if (typeof overrideHash === "string") {
+        hash = overrideHash;
+      } else if (mode === "file") {
         // Hash locally — only the 32-byte fingerprint is sent, never the file.
         setStatus("hashing");
         hash = await sha256Hex(file);
@@ -40,6 +53,14 @@ export function VerifyPanel() {
       setStatus("error");
     }
   };
+
+  // Public verify link: run once on mount (the ref keeps StrictMode from double-checking).
+  useEffect(() => {
+    if (!initialHash || autoRan.current) return;
+    autoRan.current = true;
+    runVerify(initialHash);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialHash]);
 
   const reset = () => {
     setFile(null);
@@ -105,7 +126,7 @@ export function VerifyPanel() {
 
         {error && <p className="panel__error">{error}</p>}
 
-        <button className="panel__submit" onClick={runVerify} disabled={!canSubmit || busy}>
+        <button className="panel__submit" onClick={() => runVerify()} disabled={!canSubmit || busy}>
           {status === "hashing" ? "Hashing locally…" : status === "checking" ? "Checking the ledger…" : "Verify"}
         </button>
 
@@ -122,8 +143,18 @@ export function VerifyPanel() {
               <>
                 <div className="panel__result-row">
                   <span className="panel__result-label">Notarized at</span>
-                  <span>{formatTimestamp(result.onChain.timestamp)}</span>
+                  <span title={isoUtc(result.onChain.timestamp)}>{formatTimestamp(result.onChain.timestamp)}</span>
                 </div>
+                <div className="panel__result-row">
+                  <span className="panel__result-label">Recorded (UTC)</span>
+                  <span className="mono">{isoUtc(result.onChain.timestamp)}</span>
+                </div>
+                {network?.name && (
+                  <div className="panel__result-row">
+                    <span className="panel__result-label">Network</span>
+                    <span>{network.name}</span>
+                  </div>
+                )}
                 {result.onChain.label && (
                   <div className="panel__result-row">
                     <span className="panel__result-label">Public label</span>
@@ -136,13 +167,22 @@ export function VerifyPanel() {
                     {truncateAddress(result.onChain.submitter)} (relayer)
                   </span>
                 </div>
-                {result.metadata?.txHash && (
+                {explorerTxUrl(network, result.metadata?.txHash) ? (
                   <div className="panel__result-row">
                     <span className="panel__result-label">Transaction</span>
-                    <a href={`https://sepolia.etherscan.io/tx/${result.metadata.txHash}`} target="_blank" rel="noreferrer">
-                      View on Etherscan ↗
+                    <a href={explorerTxUrl(network, result.metadata.txHash)} target="_blank" rel="noreferrer">
+                      View on block explorer ↗
                     </a>
                   </div>
+                ) : (
+                  explorerAddressUrl(network, network?.contractAddress) && (
+                    <div className="panel__result-row">
+                      <span className="panel__result-label">Contract</span>
+                      <a href={explorerAddressUrl(network, network.contractAddress)} target="_blank" rel="noreferrer">
+                        View contract on block explorer ↗
+                      </a>
+                    </div>
+                  )
                 )}
                 {METADATA_NOTES[result.metadataStatus] && (
                   <p className="panel__muted">{METADATA_NOTES[result.metadataStatus]}</p>

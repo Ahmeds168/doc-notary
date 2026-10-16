@@ -30,6 +30,7 @@ export const PLAN_CATALOG = Object.freeze({
     monthlyNotarizations: 3,
     maxFileSizeBytes: 5 * MB,
     historyDashboard: false,
+    certificates: true, // PDF proof certificates — flip to false to make this Standard-only
     support: "none",
   }),
   standard: Object.freeze({
@@ -37,6 +38,7 @@ export const PLAN_CATALOG = Object.freeze({
     monthlyNotarizations: 25,
     maxFileSizeBytes: 25 * MB,
     historyDashboard: true,
+    certificates: true,
     support: "email",
   }),
 });

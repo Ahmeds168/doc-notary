@@ -4,9 +4,10 @@ import { Seal } from "./Seal.jsx";
 import { HashChip } from "./HashChip.jsx";
 import { notarizeFile, getOperation } from "../lib/api.js";
 import { sha256Hex, truncateHash, formatTimestamp } from "../lib/hash.js";
+import { CertificateButton } from "./CertificateButton.jsx";
+import { useNetwork, explorerTxUrl } from "../lib/useNetwork.js";
 import "./Panel.css";
 
-const EXPLORER_TX_BASE = "https://sepolia.etherscan.io/tx/";
 const MAX_LABEL_LENGTH = 64;
 const POLL_INTERVAL_MS = 5000;
 const MAX_POLLS = 36; // ~3 minutes
@@ -27,6 +28,7 @@ export function NotarizePanel({ session, account, onNotarized }) {
   const pollRef = useRef(null);
 
   const token = session?.access_token;
+  const network = useNetwork();
   const ent = account?.entitlements;
   const usage = account?.usage;
   const quotaReached = usage && usage.used >= usage.limit;
@@ -193,9 +195,9 @@ export function NotarizePanel({ session, account, onNotarized }) {
                 ? "Submitted — waiting for the network to confirm. This can take a few minutes."
                 : "Transaction sent — waiting for a block…"}
             </p>
-            {result?.txHash && (
-              <a href={`${EXPLORER_TX_BASE}${result.txHash}`} target="_blank" rel="noreferrer">
-                Track on Etherscan ↗
+            {explorerTxUrl(network, result?.txHash) && (
+              <a href={explorerTxUrl(network, result.txHash)} target="_blank" rel="noreferrer">
+                Track on the block explorer ↗
               </a>
             )}
             <p className="panel__muted">You can leave this page; retrying the same file will never create a second transaction.</p>
@@ -208,11 +210,11 @@ export function NotarizePanel({ session, account, onNotarized }) {
               <span className="panel__result-label">Document hash</span>
               <HashChip value={result?.documentHash} truncated={truncateHash(result?.documentHash, 8)} />
             </div>
-            {result?.txHash && (
+            {explorerTxUrl(network, result?.txHash) && (
               <div className="panel__result-row">
                 <span className="panel__result-label">Transaction</span>
-                <a href={`${EXPLORER_TX_BASE}${result.txHash}`} target="_blank" rel="noreferrer">
-                  View on Etherscan ↗
+                <a href={explorerTxUrl(network, result.txHash)} target="_blank" rel="noreferrer">
+                  View on block explorer ↗
                 </a>
               </div>
             )}
@@ -224,6 +226,9 @@ export function NotarizePanel({ session, account, onNotarized }) {
             )}
             {result?.metadataStatus === "pending" && (
               <p className="panel__muted">Sealed on-chain. Your history entry will appear shortly.</p>
+            )}
+            {status === "done" && result?.documentHash && (
+              <CertificateButton hash={result.documentHash} token={token} className="panel__reset" />
             )}
             <button className="panel__reset" onClick={reset}>
               Notarize another file

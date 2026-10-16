@@ -9,6 +9,7 @@ import { getStats, getMe } from "./lib/api.js";
 import { useSession } from "./lib/useSession.js";
 import { supabase } from "./lib/supabase.js";
 import { confirmEmailFromUrl } from "./lib/confirmEmail.js";
+import { readVerifyRoute } from "./lib/routes.js";
 import "./styles/tokens.css";
 import "./App.css";
 
@@ -19,6 +20,8 @@ export default function App() {
   const [isWaking, setIsWaking] = useState(false);
   const [accountState, setAccountState] = useState({ token: null, account: null });
   const [confirmResult, setConfirmResult] = useState(null);
+  // Public /verify/:hash links open the Verify tab pre-filled (read once on load).
+  const [verifyRoute] = useState(() => readVerifyRoute(window.location.pathname));
 
   // Handle /auth/confirm?token_hash=…&type=email links from the signup email.
   useEffect(() => {
@@ -67,7 +70,12 @@ export default function App() {
       {confirmResult && <ConfirmBanner result={confirmResult} onDismiss={() => setConfirmResult(null)} />}
       {isWaking && <WakingBanner />}
       <Hero totalNotarized={totalNotarized} />
-      <AppCard session={session} account={account} onNotarized={() => setRefreshKey((k) => k + 1)} />
+      <AppCard
+        session={session}
+        account={account}
+        verifyRoute={verifyRoute}
+        onNotarized={() => setRefreshKey((k) => k + 1)}
+      />
       <section className="app-card ledger-section">
         <Ledger session={session} account={account} refreshKey={refreshKey} />
       </section>

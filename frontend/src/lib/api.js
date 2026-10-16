@@ -62,6 +62,32 @@ export async function getMe(token) {
   return handleResponse(res);
 }
 
+/** `certificate-<first 12 hex chars of the hash>.pdf` — matches the backend's Content-Disposition. */
+export function certificateFilename(hash) {
+  return `certificate-${String(hash).replace(/^0x/, "").slice(0, 12)}.pdf`;
+}
+
+/** Owner-only PDF certificate. Resolves to a Blob; errors carry status/code like other calls. */
+export async function fetchCertificate(hash, token) {
+  const res = await fetch(`${API_BASE_URL}/api/documents/${hash}/certificate`, { headers: authHeaders(token) });
+  if (!res.ok) return handleResponse(res);
+  return res.blob();
+}
+
+let networkPromise = null;
+/** Public network details ({ name, isTestnet, explorerUrl, contractAddress }), fetched once per page load. */
+export function getNetwork() {
+  if (!networkPromise) {
+    networkPromise = fetch(`${API_BASE_URL}/api/network`)
+      .then(handleResponse)
+      .catch((err) => {
+        networkPromise = null; // allow a retry later (e.g. after a cold start)
+        throw err;
+      });
+  }
+  return networkPromise;
+}
+
 export async function getStats() {
   const res = await fetch(`${API_BASE_URL}/api/stats`);
   return handleResponse(res);

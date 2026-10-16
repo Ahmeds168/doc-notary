@@ -136,6 +136,7 @@ Production email needs custom SMTP. Supabase's built-in sender only delivers to 
 | Notarizations / month (UTC calendar month) | 3 | 25 |
 | Max file size | 5 MB | 25 MB |
 | History dashboard + private downloads list | – | ✓ |
+| PDF proof certificates | ✓ | ✓ |
 | Support | – | email |
 | Verification | unlimited | unlimited |
 
@@ -226,18 +227,44 @@ Key properties:
 |---|---|---|
 | `GET /health` | – | liveness |
 | `GET /api/stats` | – | `totalNotarized`, read from the chain |
+| `GET /api/network` | – | public network details for the UI: `name`, `isTestnet`, `chainId`, `explorerUrl`, `contractAddress` |
 | `GET /api/me` | ✓ | plan, entitlements, this month's usage |
 | `POST /api/documents/notarize` | ✓ | multipart `file`, optional `label`. `201` confirmed / `202` pending or uncertain |
 | `GET /api/documents/operations/:id` | ✓ owner | poll a pending operation |
 | `GET /api/documents/verify/:hash` | – | hash: 64 hex chars, `0x` optional, any case |
 | `GET /api/documents/mine?limit&offset` | ✓ Standard | own history (`limit` ≤ 50) |
 | `GET /api/documents/:hash/download` | ✓ owner | `{ url, expiresInSeconds }` |
+| `GET /api/documents/:hash/certificate` | ✓ owner | one-page PDF (`application/pdf`, attachment, `no-store`). `404` for not-yours / unknown / legacy, `409 NOT_CONFIRMED` until mined, `403 PLAN_REQUIRED` without the `certificates` entitlement |
 
 Errors are `{ "error": "<safe message>", "code": "<CODE>" }`. Internal error details are
 logged (with secrets redacted), never returned. Removed: `POST /api/documents/verify` (file
 upload) and the public `GET /api/documents` listing, which exposed hashes, filenames and storage keys.
 
 ---
+
+## Certificates
+
+Owners can download a one-page **Proof of Existence Certificate** (PDF) for any confirmed
+notarization: the **Download certificate** button on a confirmed result, or **Certificate** on
+each row of the history. It is generated on request (pdfkit with standard fonts, plus a QR code)
+and never stored.
+
+It contains the certificate ID (the operation id), the full SHA-256 hash, the recorded time
+(block timestamp, ISO 8601 UTC), the network, contract address, transaction hash and block number,
+the public label if any, the **original filename (owner's copy only, never in a public
+response)**, a QR code and link to the public verify page `/verify/<hash>`, a link to the
+transaction on the block explorer, a "How to check this yourself" box, and the statement that it
+proves existence by a time, not authorship, and is not a legal notarization. On a test network it
+also says "Test network: for demonstration only".
+
+Network name, explorer, test-network flag and the verify-link base all come from configuration
+(`NETWORK_NAME`, `EXPLORER_URL`, `NETWORK_IS_TESTNET`, `PUBLIC_APP_URL`), so moving to another
+chain such as Base mainnet is a config change. The PDF is a convenience: the on-chain record is
+the proof, and anyone can check it at `/verify/<hash>` without an account.
+
+Access rules are the same as for downloads, and the feature is gated by the `certificates`
+entitlement in `backend/src/lib/entitlements.js` (on for both plans today; set it to `false` on
+`free` to make it Standard-only).
 
 ## Legacy records (pre-auth)
 
@@ -284,6 +311,10 @@ values are never logged. See `backend/.env.example` for every option and its def
 | `RATE_LIMIT_NOTARIZE_PER_MINUTE` / `RATE_LIMIT_VERIFY_PER_MINUTE` | | burst limits (5 / 60) |
 | `MAX_FILE_SIZE_BYTES` | | operator ceiling; plans can only be lower |
 | `ENTITLEMENTS_PROVIDER` | | `local` (default) or `kelviq` (not implemented, see below) |
+| `NETWORK_NAME` | | network name on certificates and in the UI (default `Ethereum Sepolia (test network)`) |
+| `EXPLORER_URL` | | block explorer base URL (default `https://sepolia.etherscan.io`) |
+| `NETWORK_IS_TESTNET` | | show the test-network notice. Defaults to true for known test chain ids (Sepolia, Holesky, Base Sepolia, …), false otherwise |
+| `PUBLIC_APP_URL` | | frontend URL used for verify links/QR codes on certificates (default: the first `CORS_ORIGIN`) |
 
 ### Frontend (`frontend/.env`, Vercel env vars)
 
@@ -365,8 +396,8 @@ Apply the SQL in `backend/supabase/` (see above) to the Supabase project you poi
 | Suite | Command | What it covers |
 |---|---|---|
 | Contracts | `npx hardhat test` | notarize / verify / duplicates on an in-process Hardhat network |
-| Backend | `cd backend && npm test` | auth and cross-user access, legacy rows, quotas and rate limits before upload, relayer budget and fee cap, DB failure after a confirmed tx and recovery, concurrent duplicates, uncertain broadcasts, verification during a Supabase outage, CORS, config validation, secret redaction, and the migration SQL itself |
-| Frontend | `cd frontend && npm test` | browser-side verification sends only the hash, label opt-in, API client |
+| Backend | `cd backend && npm test` | auth and cross-user access, legacy rows, quotas and rate limits before upload, relayer budget and fee cap, DB failure after a confirmed tx and recovery, concurrent duplicates, uncertain broadcasts, verification during a Supabase outage, CORS, config validation, secret redaction, PDF certificates (content, access rules, entitlement), and the migration SQL itself |
+| Frontend | `cd frontend && npm test` | browser-side verification sends only the hash, label opt-in, API client, `/verify/:hash` pre-fill and auto-check, certificate buttons |
 
 `.github/workflows/ci.yml` runs contract tests, backend lint and tests, and frontend lint, tests
 and production build, all with `npm ci`. All external services are faked: no RPC, R2, Supabase

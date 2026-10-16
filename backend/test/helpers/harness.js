@@ -50,7 +50,7 @@ export async function createHarness({ env = {}, chainOptions } = {}) {
     return { user, token: auth.issue(user) };
   }
 
-  return { app, config, pg, store: pg.store, chain, storage, auth, log, notarization, signUp };
+  return { app, config, pg, store: pg.store, chain, storage, auth, log, notarization, entitlements, signUp };
 }
 
 export function fileBuffer(text) {
