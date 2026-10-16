@@ -65,6 +65,23 @@ function ethVar(env, name, fallback, problems) {
   }
 }
 
+function urlVar(env, name, fallback, problems) {
+  const raw = env[name] === undefined || env[name] === "" ? fallback : env[name];
+  if (raw === undefined) return undefined;
+  try {
+    const url = new URL(String(raw).trim());
+    if (!["http:", "https:"].includes(url.protocol)) throw new Error("scheme");
+    return url.toString().replace(/\/+$/, "");
+  } catch {
+    problems.push(`${name} must be an http(s) URL`);
+    return undefined;
+  }
+}
+
+// Chain ids treated as test networks unless NETWORK_IS_TESTNET says otherwise:
+// Ethereum Sepolia / Holesky / Goerli, Base Sepolia, Polygon Amoy.
+const KNOWN_TESTNET_CHAIN_IDS = new Set([11155111, 17000, 5, 84532, 80002]);
+
 function boolVar(env, name, fallback) {
   const raw = env[name];
   if (raw === undefined || raw === "") return fallback;
@@ -136,6 +153,18 @@ export function loadConfig(env = process.env) {
       receiptTimeoutMs: intVar(env, "TX_RECEIPT_TIMEOUT_MS", 90_000, problems, { min: 1000 }),
     },
 
+    // Human-facing network details (certificates, verify page). Change these together with
+    // CHAIN_ID / CONTRACT_ADDRESS when moving networks (e.g. to Base mainnet).
+    network: {
+      name: (env.NETWORK_NAME || "Ethereum Sepolia (test network)").trim(),
+      explorerUrl: urlVar(env, "EXPLORER_URL", "https://sepolia.etherscan.io", problems),
+      isTestnet: undefined, // resolved below from NETWORK_IS_TESTNET or CHAIN_ID
+    },
+
+    // Public frontend origin, used for verify links printed on certificates.
+    // Defaults to the first CORS_ORIGIN entry (the deployed frontend).
+    publicAppUrl: urlVar(env, "PUBLIC_APP_URL", corsOrigins[0], problems),
+
     upload: {
       // Absolute ceiling regardless of plan.
       maxFileSizeBytes: intVar(env, "MAX_FILE_SIZE_BYTES", 25 * 1024 * 1024, problems, { min: 1 }),
@@ -176,9 +205,14 @@ export function loadConfig(env = process.env) {
     problems.push("RELAYER_MAX_TX_COST_ETH must not exceed RELAYER_DAILY_BUDGET_ETH");
   }
 
+  config.network.isTestnet = boolVar(env, "NETWORK_IS_TESTNET", KNOWN_TESTNET_CHAIN_IDS.has(config.chain.chainId));
+
   if (problems.length) throw new ConfigError(problems);
 
   config.warnings = [];
+  if (!env.NETWORK_NAME && config.chain.chainId !== 11155111) {
+    config.warnings.push("CHAIN_ID is not Sepolia but NETWORK_NAME is unset: certificates will show the default network name. Set NETWORK_NAME and EXPLORER_URL.");
+  }
   if (env.R2_PUBLIC_BASE_URL) {
     config.warnings.push(
       "R2_PUBLIC_BASE_URL is set but ignored: originals are private and only served through authenticated, short-lived signed URLs. Make sure the bucket has no public access."
