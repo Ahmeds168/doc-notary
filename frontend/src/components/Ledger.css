@@ -83,3 +83,10 @@
   border-color: var(--brass-500);
   color: var(--bone-100);
 }
+
+.ledger__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: flex-start;
+}

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { listMyDocuments, getDownloadUrl } from "../lib/api.js";
 import { truncateHash, formatTimestamp } from "../lib/hash.js";
 import { HashChip } from "./HashChip.jsx";
+import { CertificateButton } from "./CertificateButton.jsx";
 import "./Ledger.css";
 
 /** The signed-in user's own notarizations (Standard plan's history dashboard). */
@@ -79,10 +80,11 @@ export function Ledger({ session, account, refreshKey }) {
                   <HashChip value={doc.documentHash} truncated={truncateHash(doc.documentHash)} />
                 </td>
                 <td className="ledger__time">{formatTimestamp(doc.timestamp)}</td>
-                <td>
+                <td className="ledger__actions">
                   <button type="button" className="ledger__download" onClick={() => download(doc.documentHash)}>
                     Download
                   </button>
+                  <CertificateButton hash={doc.documentHash} token={token} className="ledger__download" label="Certificate" />
                 </td>
               </tr>
             ))}
