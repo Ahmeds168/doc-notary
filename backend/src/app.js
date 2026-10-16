@@ -46,6 +46,17 @@ export function createApp({ config, store, chain, storage, auth, entitlements, n
     }
   });
 
+  /** GET /api/network — public network details for the UI (name, explorer, contract). */
+  app.get("/api/network", (_req, res) => {
+    res.json({
+      name: config.network.name,
+      isTestnet: config.network.isTestnet,
+      chainId: config.chain.chainId,
+      explorerUrl: config.network.explorerUrl ?? null,
+      contractAddress: config.chain.contractAddress,
+    });
+  });
+
   /** GET /api/me — the signed-in user's plan, entitlements and this month's usage. */
   app.get("/api/me", requireAuth(auth, log), async (req, res, next) => {
     try {

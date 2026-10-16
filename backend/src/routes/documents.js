@@ -5,6 +5,7 @@ import { rateLimit } from "../lib/rateLimit.js";
 import { HttpError } from "../lib/errors.js";
 import { normalizeHash, parseLabel, parsePagination, sanitizeFilename } from "../lib/validation.js";
 import { describeOperation } from "../services/notarization.js";
+import { createCertificateService } from "../services/certificates.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MIME_RE = /^[\w.+-]+\/[\w.+-]+$/;
@@ -31,6 +32,8 @@ export function createDocumentsRouter({ config, store, chain, storage, auth, ent
   const ipKey = (req) => `ip:${req.ip}`;
   const verifyLimiter = rateLimit({ limit: config.rateLimit.verifyPerMinute, keyFn: ipKey });
   const notarizeIpLimiter = rateLimit({ limit: config.rateLimit.notarizePerMinute * 4, keyFn: ipKey });
+  const certificateLimiter = rateLimit({ limit: config.rateLimit.verifyPerMinute, keyFn: (req) => `cert:${req.user.id}` });
+  const certificates = createCertificateService({ store, chain, config, log });
   const notarizeUserLimiter = rateLimit({ limit: config.rateLimit.notarizePerMinute, keyFn: (req) => `user:${req.user.id}` });
 
   const loadEntitlements = async (req, _res, next) => {
@@ -216,6 +219,35 @@ export function createDocumentsRouter({ config, store, chain, storage, auth, ent
         filename: doc.original_filename || `${documentHash}`,
       });
       res.set("Cache-Control", "no-store").json({ url, expiresInSeconds: expiresIn });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  /**
+   * GET /api/documents/:hash/certificate — owner-only one-page PDF proof certificate.
+   * Same existence rules as /download (not yours / missing / legacy => 404); 409 until the
+   * operation is confirmed; 403 PLAN_REQUIRED when the plan lacks the `certificates` entitlement.
+   */
+  router.get("/:hash/certificate", authed, certificateLimiter, loadEntitlements, async (req, res, next) => {
+    try {
+      const documentHash = normalizeHash(req.params.hash);
+      if (!documentHash) throw new HttpError(400, "INVALID_HASH", "Invalid hash.");
+      if (!req.entitlements.certificates) {
+        throw new HttpError(403, "PLAN_REQUIRED", "Certificates aren't included in your plan.", {
+          plan: req.entitlements.plan,
+        });
+      }
+
+      const { pdf, filename } = await certificates.forOwner(req.user, documentHash);
+      res
+        .set({
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `attachment; filename="${filename}"`,
+          "Content-Length": String(pdf.length),
+          "Cache-Control": "no-store",
+        })
+        .send(pdf);
     } catch (err) {
       next(err);
     }
