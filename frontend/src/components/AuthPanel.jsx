@@ -1,15 +1,31 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { Turnstile } from "@marsidev/react-turnstile";
 import { supabase } from "../lib/supabase.js";
 import "./Panel.css";
 import "./AuthPanel.css";
 
-/** Email + password sign in / sign up via Supabase Auth. */
+const CAPTCHA_MESSAGES = {
+  failed: "We couldn't load the human check. Check your connection or turn off content blockers for this site, then reload the page.",
+  expired: "The human check expired. Please complete it again.",
+};
+
+/**
+ * Email + password sign in / sign up via Supabase Auth.
+ *
+ * With VITE_TURNSTILE_SITE_KEY set, a Cloudflare Turnstile widget must be completed first and
+ * its single-use token is sent as `captchaToken` (Supabase Auth CAPTCHA protection). Without
+ * the key (e.g. local dev) there is no widget and Supabase is called without a token.
+ */
 export function AuthPanel({ reason }) {
+  const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
   const [mode, setMode] = useState("signin"); // signin | signup
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState("idle"); // idle | working | sent
   const [error, setError] = useState(null);
+  const [captchaToken, setCaptchaToken] = useState(null);
+  const [captchaProblem, setCaptchaProblem] = useState(null); // null | "failed" | "expired"
+  const turnstileRef = useRef(null);
 
   if (!supabase) {
     return (
@@ -23,10 +39,23 @@ export function AuthPanel({ reason }) {
     e.preventDefault();
     setStatus("working");
     setError(null);
-    const { data, error: authError } =
-      mode === "signin"
-        ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password });
+    const options = siteKey ? { captchaToken } : undefined;
+    let result;
+    try {
+      result =
+        mode === "signin"
+          ? await supabase.auth.signInWithPassword({ email, password, options })
+          : await supabase.auth.signUp({ email, password, options });
+    } catch {
+      result = { data: null, error: { message: "Couldn't reach the sign-in service. Please try again." } };
+    } finally {
+      // Tokens are single-use: always get a fresh one for the next attempt.
+      if (siteKey) {
+        setCaptchaToken(null);
+        turnstileRef.current?.reset();
+      }
+    }
+    const { data, error: authError } = result;
     if (authError) {
       setError(authError.message);
       setStatus("idle");
@@ -62,9 +91,46 @@ export function AuthPanel({ reason }) {
           onChange={(e) => setPassword(e.target.value)}
         />
       </label>
+      {siteKey && (
+        <div className="auth-panel__captcha">
+          {/* Hidden (not unmounted) when it failed to load, so no empty gap; it reappears if it recovers. */}
+          <Turnstile
+            hidden={captchaProblem === "failed"}
+            ref={turnstileRef}
+            siteKey={siteKey}
+            options={{ theme: "dark", size: "flexible" }}
+            scriptOptions={{ onError: () => setCaptchaProblem("failed") }}
+            onSuccess={(token) => {
+              setCaptchaToken(token);
+              setCaptchaProblem(null);
+            }}
+            onExpire={() => {
+              setCaptchaToken(null);
+              setCaptchaProblem("expired");
+            }}
+            onTimeout={() => {
+              setCaptchaToken(null);
+              setCaptchaProblem("expired");
+            }}
+            onError={() => {
+              setCaptchaToken(null);
+              setCaptchaProblem("failed");
+            }}
+          />
+          {captchaProblem && (
+            <p className="panel__error" role="alert">
+              {CAPTCHA_MESSAGES[captchaProblem]}
+            </p>
+          )}
+        </div>
+      )}
       {error && <p className="panel__error">{error}</p>}
       {status === "sent" && <p className="auth-panel__note">Check your inbox to confirm your email, then sign in.</p>}
-      <button className="panel__submit" type="submit" disabled={status === "working"}>
+      <button
+        className="panel__submit"
+        type="submit"
+        disabled={status === "working" || (Boolean(siteKey) && !captchaToken)}
+      >
         {status === "working" ? "One moment…" : mode === "signin" ? "Sign in" : "Create free account"}
       </button>
     </form>

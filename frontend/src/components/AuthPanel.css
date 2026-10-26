@@ -42,3 +42,10 @@
   color: var(--forest-300);
   font-size: 0.85rem;
 }
+
+.auth-panel__captcha {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
