@@ -5,13 +5,13 @@ export function Header({ session, plan }) {
   return (
     <header className="site-header">
       <div className="site-header__inner">
-        <div className="site-header__brand">
+        <a className="site-header__brand" href="/" aria-label="Doc Notary home">
           <svg viewBox="0 0 40 40" className="site-header__mark" aria-hidden="true">
             <circle cx="20" cy="20" r="18" fill="none" stroke="var(--brass-500)" strokeWidth="2" />
             <circle cx="20" cy="20" r="6" fill="var(--brass-500)" />
           </svg>
           <span className="site-header__title">Document Notary</span>
-        </div>
+        </a>
         <div className="site-header__right">
           {session && (
             <div className="site-header__account">

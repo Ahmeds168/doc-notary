@@ -16,9 +16,9 @@ const CAPTCHA_MESSAGES = {
  * its single-use token is sent as `captchaToken` (Supabase Auth CAPTCHA protection). Without
  * the key (e.g. local dev) there is no widget and Supabase is called without a token.
  */
-export function AuthPanel({ reason }) {
+export function AuthPanel({ reason, initialMode = "signin" }) {
   const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
-  const [mode, setMode] = useState("signin"); // signin | signup
+  const [mode, setMode] = useState(initialMode === "signup" ? "signup" : "signin"); // signin | signup
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState("idle"); // idle | working | sent
@@ -123,6 +123,12 @@ export function AuthPanel({ reason }) {
             </p>
           )}
         </div>
+      )}
+      {mode === "signup" && (
+        <p className="auth-panel__consent">
+          By creating an account you agree to the <a href="/terms">Terms of Service</a> and{" "}
+          <a href="/privacy">Privacy Policy</a>.
+        </p>
       )}
       {error && <p className="panel__error">{error}</p>}
       {status === "sent" && <p className="auth-panel__note">Check your inbox to confirm your email, then sign in.</p>}

@@ -1,0 +1,37 @@
+.site-footer {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.site-footer__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 0;
+}
+
+.site-footer__nav a {
+  color: var(--bone-300);
+  text-decoration: none;
+}
+
+.site-footer__nav a:hover {
+  color: var(--brass-300);
+  text-decoration: underline;
+}
+
+.site-footer__sep {
+  margin: 0 8px;
+  color: var(--bone-500);
+}
+
+.site-footer__legal {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.site-footer__email {
+  user-select: all;
+  color: var(--bone-300);
+  word-break: break-all;
+}

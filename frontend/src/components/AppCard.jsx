@@ -4,14 +4,14 @@ import { VerifyPanel } from "./VerifyPanel.jsx";
 import { AuthPanel } from "./AuthPanel.jsx";
 import "./AppCard.css";
 
-export function AppCard({ session, account, onNotarized, verifyRoute = null }) {
+export function AppCard({ session, account, onNotarized, verifyRoute = null, authMode = "signin" }) {
   const [tab, setTab] = useState(verifyRoute ? "verify" : "notarize");
   const cardRef = useRef(null);
 
-  // A shared /verify/:hash link is about this card, not the hero: bring it into view.
+  // A shared /verify/:hash link or a "Start free" sign-up link is about this card, not the hero.
   useEffect(() => {
-    if (verifyRoute) cardRef.current?.scrollIntoView?.({ block: "start" });
-  }, [verifyRoute]);
+    if (verifyRoute || authMode === "signup") cardRef.current?.scrollIntoView?.({ block: "start" });
+  }, [verifyRoute, authMode]);
 
   return (
     <section className="app-card" ref={cardRef}>
@@ -33,7 +33,7 @@ export function AppCard({ session, account, onNotarized, verifyRoute = null }) {
         ) : session ? (
           <NotarizePanel session={session} account={account} onNotarized={onNotarized} />
         ) : (
-          <AuthPanel reason="Sign in to notarize. Free accounts include 3 notarizations a month. Verifying a document never requires an account." />
+          <AuthPanel initialMode={authMode} reason="Sign in to notarize. Free accounts include 3 notarizations a month. Verifying a document never requires an account." />
         )}
       </div>
     </section>

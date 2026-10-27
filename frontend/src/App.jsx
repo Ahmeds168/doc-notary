@@ -9,11 +9,49 @@ import { getStats, getMe } from "./lib/api.js";
 import { useSession } from "./lib/useSession.js";
 import { supabase } from "./lib/supabase.js";
 import { confirmEmailFromUrl } from "./lib/confirmEmail.js";
-import { readVerifyRoute } from "./lib/routes.js";
+import { readVerifyRoute, resolvePage, PAGE_META } from "./lib/routes.js";
+import { usePageMeta } from "./lib/usePageMeta.js";
+import { Footer } from "./components/Footer.jsx";
+import { PricingPage } from "./components/pages/PricingPage.jsx";
+import { AboutPage } from "./components/pages/AboutPage.jsx";
+import { TermsPage } from "./components/pages/TermsPage.jsx";
+import { PrivacyPage } from "./components/pages/PrivacyPage.jsx";
+import { RefundPage } from "./components/pages/RefundPage.jsx";
+import { NotFoundPage } from "./components/pages/NotFoundPage.jsx";
 import "./styles/tokens.css";
 import "./App.css";
 
+const PAGES = {
+  pricing: PricingPage,
+  about: AboutPage,
+  terms: TermsPage,
+  privacy: PrivacyPage,
+  refund: RefundPage,
+  notFound: NotFoundPage,
+};
+
+/** Picks the page from the URL once (internal links are full page loads). */
 export default function App() {
+  const [page] = useState(() => resolvePage(window.location.pathname));
+  usePageMeta({ ...PAGE_META[page], noindex: page === "notFound" });
+
+  if (page === "home") return <HomePage />;
+  const Page = PAGES[page];
+  return <PageShell><Page /></PageShell>;
+}
+
+function PageShell({ children }) {
+  const { session } = useSession();
+  return (
+    <div className="app-shell">
+      <Header session={session} />
+      {children}
+      <Footer />
+    </div>
+  );
+}
+
+function HomePage() {
   const { session } = useSession();
   const [totalNotarized, setTotalNotarized] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -22,6 +60,8 @@ export default function App() {
   const [confirmResult, setConfirmResult] = useState(null);
   // Public /verify/:hash links open the Verify tab pre-filled (read once on load).
   const [verifyRoute] = useState(() => readVerifyRoute(window.location.pathname));
+  // "Start free" on the Pricing page links to /?signup=1.
+  const [authMode] = useState(() => (new URLSearchParams(window.location.search).has("signup") ? "signup" : "signin"));
 
   // Handle /auth/confirm?token_hash=…&type=email links from the signup email.
   useEffect(() => {
@@ -74,14 +114,13 @@ export default function App() {
         session={session}
         account={account}
         verifyRoute={verifyRoute}
+        authMode={authMode}
         onNotarized={() => setRefreshKey((k) => k + 1)}
       />
       <section className="app-card ledger-section">
         <Ledger session={session} account={account} refreshKey={refreshKey} />
       </section>
-      <footer className="site-footer">
-        <span>Document Notary — an on-chain proof-of-existence tool</span>
-      </footer>
+      <Footer />
     </div>
   );
 }

@@ -144,3 +144,22 @@ describe("AuthPanel without a site key (local dev)", () => {
     expect(reset).not.toHaveBeenCalled();
   });
 });
+
+describe("AuthPanel sign-up consent", () => {
+  it("links to the Terms and Privacy Policy in sign-up mode only", () => {
+    vi.stubEnv("VITE_TURNSTILE_SITE_KEY", "");
+    render(<AuthPanel reason="r" />);
+    expect(screen.queryByText(/By creating an account you agree/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+    const consent = screen.getByText(/By creating an account you agree to the/);
+    expect(consent.querySelector('a[href="/terms"]').textContent).toBe("Terms of Service");
+    expect(consent.querySelector('a[href="/privacy"]').textContent).toBe("Privacy Policy");
+  });
+
+  it("opens in sign-up mode when asked (Pricing page 'Start free')", () => {
+    vi.stubEnv("VITE_TURNSTILE_SITE_KEY", SITE_KEY);
+    render(<AuthPanel reason="r" initialMode="signup" />);
+    expect(submitButton("Create free account")).toBeTruthy();
+    expect(screen.getByTestId("turnstile")).toBeTruthy(); // Turnstile flow unchanged
+  });
+});

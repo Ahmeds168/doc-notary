@@ -49,3 +49,13 @@
   gap: 8px;
   width: 100%;
 }
+
+.auth-panel__consent {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--bone-500);
+}
+
+.auth-panel__consent a {
+  color: var(--brass-300);
+}
