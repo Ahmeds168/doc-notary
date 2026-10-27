@@ -35,7 +35,7 @@ export function RefundPage() {
       <h2>Proofs after a refund</h2>
       <p>
         Proofs already recorded stay on the blockchain after a refund. No one can remove them, and you can still
-        verify them.
+        verify them. While Doc Notary is in beta, this is subject to the test-network notice above.
       </p>
 
       <h2>Cancelling</h2>
