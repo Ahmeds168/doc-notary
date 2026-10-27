@@ -35,7 +35,8 @@ export const PAGE_PATHS = Object.freeze({
 export const PAGE_META = Object.freeze({
   home: {
     title: "Document Notary — Proof of Existence on Sepolia",
-    description: "Record a file's SHA-256 fingerprint on a public blockchain and verify it later in your browser.",
+    // Same as index.html: the home page's existing title and description are unchanged.
+    description: "Notarize any file with a tamper-proof on-chain hash. Verify authenticity and timestamp in seconds.",
   },
   pricing: {
     title: "Pricing — Doc Notary",

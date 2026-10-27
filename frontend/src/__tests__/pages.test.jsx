@@ -67,8 +67,12 @@ describe("site pages", () => {
     expect(screen.queryByText(/Prove a file existed/)).toBeNull();
   });
 
-  it("the home page still renders the app", () => {
+  it("the home page still renders the app, with its original title and description", () => {
     renderAt("/");
+    expect(document.title).toBe("Document Notary — Proof of Existence on Sepolia");
+    expect(meta("description")).toBe(
+      "Notarize any file with a tamper-proof on-chain hash. Verify authenticity and timestamp in seconds."
+    );
     expect(screen.getByText(/Prove a file existed/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Verify" })).toBeTruthy();
   });
