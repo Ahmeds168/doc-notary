@@ -221,6 +221,23 @@ Key properties:
 
 ---
 
+## Site pages
+
+The frontend has no router library. `frontend/src/lib/routes.js` maps each path to a page, chosen once
+on load. Internal links are plain `<a href>` links, and `vercel.json` serves `index.html` for every path.
+
+| Path | Page |
+|---|---|
+| `/` | Notarize / Verify app (also handles `/verify/:hash` and `/auth/confirm`) |
+| `/pricing` | Plans, built from `frontend/src/lib/plans.js`. A test keeps it in sync with the backend `PLAN_CATALOG` |
+| `/about`, `/contact` | About & Contact |
+| `/terms`, `/privacy`, `/refund-policy` | Legal pages ("Last updated" set in `frontend/src/lib/site.js`) |
+| anything else | "Page not found" (`noindex`) |
+
+Business details, the beta notice and footer links live in `frontend/src/lib/site.js`. To wire
+Kelviq checkout, set `STANDARD_CHECKOUT_URL` in `frontend/src/lib/billing.js`.
+`frontend/public/sitemap.xml` and `robots.txt` list the indexable pages.
+
 ## API
 
 | Method & path | Auth | Notes |
