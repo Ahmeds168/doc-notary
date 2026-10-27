@@ -71,3 +71,13 @@ test("hash format is enforced in the database", async () => {
   const user = (await db.query("insert into auth.users (email) values ('c@example.com') returning id")).rows[0].id;
   await assert.rejects(reserve(db, user, "0xABC"));
 });
+
+test("002 grants the backend role access to every table", async () => {
+  const db = await createMigratedDb();
+  for (const table of ["documents", "profiles", "notarization_operations", "relayer_leases"]) {
+    const { rows } = await db.query(`select has_table_privilege('service_role', 'public.${table}', 'insert') as ok`);
+    assert.equal(rows[0].ok, true, table);
+  }
+  const { rows } = await db.query(`select has_table_privilege('authenticated', 'public.relayer_leases', 'select') as ok`);
+  assert.equal(rows[0].ok, false);
+});

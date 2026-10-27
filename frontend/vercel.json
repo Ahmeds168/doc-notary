@@ -2,6 +2,14 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "doc-notary.vercel.app" }],
+      "destination": "https://www.doc-notary.com/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/verify/:hash",

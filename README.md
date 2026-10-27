@@ -351,8 +351,11 @@ SQL lives in `backend/supabase/`. **Nothing is applied automatically.** Review a
    `is_legacy`, removal of the public read policy, `notarization_operations`,
    `reserve_notarization()`, relayer lease. Idempotent, wrapped in a transaction, with rollback
    notes at the bottom.
+3. `migrations/002_explicit_grants.sql`: explicit table grants (`service_role` full access,
+   `authenticated` read-only under RLS). Supabase stopped granting new public tables to these
+   roles automatically on 30 October 2026, so any new table needs its own grant lines.
 
-CI applies both files to an in-memory Postgres (PGlite) with a stub `auth` schema and runs the
+CI applies these files to an in-memory Postgres (PGlite) with a stub `auth` schema and runs the
 quota, duplicate and budget tests against them. It never touches a real database.
 
 ### Rollout order for the existing deployment
