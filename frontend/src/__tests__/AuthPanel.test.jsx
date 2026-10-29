@@ -98,6 +98,28 @@ describe("AuthPanel with Turnstile", () => {
     expect(submitButton("Create free account").disabled).toBe(true);
   });
 
+  it("tells people an email is already registered instead of claiming a confirmation was sent", async () => {
+    auth.signUp.mockResolvedValue({ data: { user: { id: "x", identities: [] }, session: null }, error: null });
+    render(<AuthPanel reason="r" />);
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+    fill("taken@example.com");
+    fireEvent.click(screen.getByText("Solve captcha"));
+    fireEvent.click(submitButton("Create free account"));
+    expect(await screen.findByText("An account with this email already exists. Sign in instead.")).toBeTruthy();
+    expect(screen.queryByText(/Check your inbox/)).toBeNull();
+    expect(submitButton("Sign in")).toBeTruthy(); // switched to the sign-in form
+  });
+
+  it("still shows the inbox note for a genuinely new account", async () => {
+    auth.signUp.mockResolvedValue({ data: { user: { id: "y", identities: [{ id: "i" }] }, session: null }, error: null });
+    render(<AuthPanel reason="r" />);
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+    fill("new@example.com");
+    fireEvent.click(screen.getByText("Solve captcha"));
+    fireEvent.click(submitButton("Create free account"));
+    expect(await screen.findByText(/Check your inbox/)).toBeTruthy();
+  });
+
   it("resets the widget even when the auth call throws, and shows a friendly error", async () => {
     auth.signInWithPassword.mockRejectedValue(new TypeError("Failed to fetch"));
     render(<AuthPanel reason="r" />);

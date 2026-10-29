@@ -61,8 +61,16 @@ export function AuthPanel({ reason, initialMode = "signin" }) {
       setStatus("idle");
       return;
     }
+    // Supabase doesn't error on an already-registered email (it hides which emails exist):
+    // it returns a placeholder user with no identities. Say so and switch to sign-in.
+    if (mode === "signup" && Array.isArray(data?.user?.identities) && data.user.identities.length === 0) {
+      setMode("signin");
+      setError("An account with this email already exists. Sign in instead.");
+      setStatus("idle");
+      return;
+    }
     // With email confirmation enabled, sign-up returns no session until the link is clicked.
-    setStatus(mode === "signup" && !data.session ? "sent" : "idle");
+    setStatus(mode === "signup" && !data?.session ? "sent" : "idle");
   };
 
   return (
