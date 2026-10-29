@@ -40,12 +40,18 @@ export function createBilling({ config, store, kelviq, log, now = () => Date.now
     if (!enabled) throw new HttpError(503, "BILLING_UNAVAILABLE", "Paid plans aren't available right now.");
   }
 
+  /** The Kelviq customer must exist and have an email, or the portal refuses with 400. */
   async function ensureCustomer(user) {
+    let customer;
     try {
-      await kelviq.getCustomer(user.id);
+      customer = await kelviq.getCustomer(user.id);
     } catch (err) {
       if (err.status !== 404) throw err;
       await kelviq.createCustomer({ customerId: user.id, email: user.email ?? undefined });
+      return;
+    }
+    if (!pick(customer, "email") && user.email) {
+      await kelviq.updateCustomer({ customerId: user.id, email: user.email });
     }
   }
 
@@ -122,10 +128,15 @@ export function createBilling({ config, store, kelviq, log, now = () => Date.now
 
   async function createPortal(user) {
     requireEnabled();
+    await ensureCustomer(user);
     const session = await kelviq.createPortalSession({ customerId: user.id });
-    const url = pick(session, "customerPortalUrl");
-    if (!url) throw new Error("Kelviq didn't return a customer portal URL.");
-    return { url };
+    const base = pick(session, "customerPortalUrl");
+    const token = pick(session, "token");
+    if (!base) throw new Error("Kelviq didn't return a customer portal URL.");
+    // The portal signs the customer in with this one-time token.
+    const url = new URL(base);
+    if (token) url.searchParams.set("token", token);
+    return { url: url.toString() };
   }
 
   /** Handle a verified webhook event: re-sync whichever customer it's about. */

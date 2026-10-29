@@ -58,6 +58,8 @@ export function createKelviqClient({ apiKey, baseUrl = "https://api.kelviq.com",
   return {
     getCustomer: (customerId) => request("GET", `/customers/${encodeURIComponent(customerId)}/`),
     createCustomer: ({ customerId, email, name }) => request("POST", "/customers/", { body: { customerId, email, name } }),
+    updateCustomer: ({ customerId, email }) =>
+      request("PATCH", `/customers/${encodeURIComponent(customerId)}/`, { body: { email } }),
     createCheckoutSession: (params) => request("POST", "/checkout/", { body: params }),
     listSubscriptions: ({ customerId }) => request("GET", "/subscriptions/", { query: { customerId, pageSize: 50 } }),
     createPortalSession: ({ customerId }) => request("POST", "/portal/session/", { body: { customerId } }),

@@ -29,6 +29,11 @@ function createFakeKelviq() {
       customers.set(c.customerId, { customer_id: c.customerId, email: c.email });
       return customers.get(c.customerId);
     },
+    async updateCustomer(c) {
+      calls.push(["updateCustomer", c]);
+      customers.set(c.customerId, { ...customers.get(c.customerId), email: c.email });
+      return customers.get(c.customerId);
+    },
     async createCheckoutSession(p) {
       calls.push(["createCheckoutSession", p]);
       return { checkout_session_id: "cs_1", checkout_url: `https://checkout.kelviq.test/${p.customerId}` };
@@ -44,7 +49,7 @@ function createFakeKelviq() {
     },
     async createPortalSession({ customerId }) {
       calls.push(["createPortalSession", customerId]);
-      return { customer_portal_url: `https://portal.kelviq.test/${customerId}` };
+      return { token: "tok_portal", email: "x@example.com", customer_portal_url: `https://portal.kelviq.test/${customerId}` };
     },
   };
 }
@@ -150,11 +155,13 @@ test("plans set by hand are never overwritten by the sync", async () => {
   assert.equal((await h.store.getProfile(user.id)).plan_source, "manual");
 });
 
-test("portal returns Kelviq's customer portal link", async () => {
+test("portal returns Kelviq's signed-in portal link, first giving the customer an email", async () => {
   const h = await setup();
   const { user, token } = await h.signUp();
+  h.kelviq.customers.set(user.id, { customer_id: user.id, email: null }); // e.g. created elsewhere without one
   const res = await request(h.app).post("/api/billing/portal").set(auth(token));
-  assert.equal(res.body.url, `https://portal.kelviq.test/${user.id}`);
+  assert.equal(res.body.url, `https://portal.kelviq.test/${user.id}?token=tok_portal`);
+  assert.equal(h.kelviq.customers.get(user.id).email, user.email);
 });
 
 function signed(body, { secret = WEBHOOK_SECRET, id = "msg_1", ts = Math.floor(Date.now() / 1000) } = {}) {
