@@ -168,6 +168,36 @@
   border-color: var(--brass-500);
 }
 
+.plan-card__cta:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+/* Secondary "or pay yearly" link under the main Standard button. */
+.plan-card__alt {
+  display: block;
+  margin-top: -4px;
+  padding: 4px 0;
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: 0.88rem;
+  text-align: center;
+  color: var(--brass-300) !important;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.plan-card__alt:hover {
+  color: var(--brass-500) !important;
+}
+
+.pricing__tax {
+  font-size: 0.88rem;
+  color: var(--bone-300);
+}
+
 .plan-card__note {
   margin: 0;
   font-size: 0.85rem;

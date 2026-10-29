@@ -79,7 +79,7 @@ export function PrivacyPage() {
           reach it, which receive the public records described above.
         </li>
         <li>
-          <strong>Kelviq</strong>, as merchant of record and payment processor, once paid plans launch. Kelviq handles
+          <strong>Kelviq</strong>, as merchant of record and payment processor for paid plans. Kelviq handles
           payment details; we don't receive your card number.
         </li>
       </ul>

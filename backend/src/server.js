@@ -9,6 +9,8 @@ import { createAuthVerifier } from "./lib/auth.js";
 import { createEntitlements } from "./lib/entitlements.js";
 import { createLogger, createRedactor } from "./lib/errors.js";
 import { createNotarizationService, createRelayerCoordinator } from "./services/notarization.js";
+import { createBilling } from "./services/billing.js";
+import { createKelviqClient } from "./lib/kelviq.js";
 
 let config;
 try {
@@ -36,7 +38,13 @@ const relayer = createRelayerCoordinator({
 });
 const notarization = createNotarizationService({ store, chain, storage, config, log, relayer });
 
-const app = createApp({ config, store, chain, storage, auth, entitlements, notarization, log });
+const kelviq = config.billing.kelviqApiKey
+  ? createKelviqClient({ apiKey: config.billing.kelviqApiKey, baseUrl: config.billing.kelviqBaseUrl })
+  : null;
+if (!kelviq) log.warn("[config] KELVIQ_API_KEY is not set: paid checkout is disabled.");
+const billing = createBilling({ config, store, kelviq, log });
+
+const app = createApp({ config, store, chain, storage, auth, entitlements, notarization, log, billing });
 
 app.listen(config.port, () => {
   log.info(`doc-notary backend listening on port ${config.port}`);

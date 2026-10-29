@@ -63,6 +63,28 @@ export async function getMe(token) {
 }
 
 /** `certificate-<first 12 hex chars of the hash>.pdf` — matches the backend's Content-Disposition. */
+/** Paid plan: Kelviq hosted checkout for the signed-in user. period = "monthly" | "yearly". */
+export async function startCheckout(period, token) {
+  const res = await fetch(`${API_BASE_URL}/api/billing/checkout`, {
+    method: "POST",
+    headers: { ...authHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify({ period }),
+  });
+  return handleResponse(res);
+}
+
+/** Kelviq customer portal (manage payment method, cancel). */
+export async function openBillingPortal(token) {
+  const res = await fetch(`${API_BASE_URL}/api/billing/portal`, { method: "POST", headers: authHeaders(token) });
+  return handleResponse(res);
+}
+
+/** Re-check the subscription with Kelviq right now (used after returning from checkout). */
+export async function syncBilling(token) {
+  const res = await fetch(`${API_BASE_URL}/api/billing/sync`, { method: "POST", headers: authHeaders(token) });
+  return handleResponse(res);
+}
+
 export function certificateFilename(hash) {
   return `certificate-${String(hash).replace(/^0x/, "").slice(0, 12)}.pdf`;
 }

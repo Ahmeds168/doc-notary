@@ -131,14 +131,15 @@ describe("pricing page", () => {
     expect(screen.getByText("25 notarizations per month")).toBeTruthy();
     expect(screen.getByText("Files up to 25 MB")).toBeTruthy();
     expect(screen.getByText("Email support")).toBeTruthy();
-    expect(screen.getAllByText("PDF proof certificates")).toHaveLength(2);
+    expect(screen.getByText("PDF proof certificate when you notarize")).toBeTruthy();
+    expect(screen.getByText("PDF proof certificates, downloadable any time")).toBeTruthy();
     expect(screen.getByText(/Verification is free and unlimited on both plans, and needs no account/)).toBeTruthy();
     expect(screen.getByText(/US\$5/)).toBeTruthy();
     expect(screen.getByRole("link", { name: "Start free" }).getAttribute("href")).toBe("/?signup=1");
 
-    fireEvent.click(screen.getByRole("button", { name: "Get Standard" }));
-    expect(screen.getByRole("status").textContent).toBe(
-      "Paid plans launch shortly — email support@doc-notary.com to get early access."
-    );
+    // Signed out: sign up first, carrying the chosen billing period through.
+    expect(screen.getByRole("link", { name: "Get Standard monthly" }).getAttribute("href")).toBe("/?signup=1&upgrade=monthly");
+    expect(screen.getByRole("link", { name: "or pay US$49 yearly" }).getAttribute("href")).toBe("/?signup=1&upgrade=yearly");
+    expect(screen.getByText(/added at checkout/)).toBeTruthy();
   });
 });

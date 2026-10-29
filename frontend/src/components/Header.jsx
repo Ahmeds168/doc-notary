@@ -1,7 +1,17 @@
+import { useState } from "react";
 import { supabase } from "../lib/supabase.js";
+import { goToBillingPortal } from "../lib/billing.js";
 import "./Header.css";
 
 export function Header({ session, plan }) {
+  const [opening, setOpening] = useState(false);
+  const manage = () => {
+    setOpening(true);
+    goToBillingPortal(session.access_token).catch(() => {
+      setOpening(false);
+      window.location.assign("/pricing");
+    });
+  };
   return (
     <header className="site-header">
       <div className="site-header__inner">
@@ -19,6 +29,17 @@ export function Header({ session, plan }) {
                 {session.user.email}
               </span>
               {plan && <span className="site-header__plan mono">{plan}</span>}
+              {plan === "standard" ? (
+                <button type="button" className="site-header__signout" onClick={manage} disabled={opening}>
+                  {opening ? "Opening…" : "Billing"}
+                </button>
+              ) : (
+                plan && (
+                  <a className="site-header__signout site-header__upgrade" href="/pricing">
+                    Upgrade
+                  </a>
+                )
+              )}
               <button type="button" className="site-header__signout" onClick={() => supabase?.auth.signOut()}>
                 Sign out
               </button>

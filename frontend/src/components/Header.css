@@ -98,3 +98,9 @@ a.site-header__brand {
   color: inherit;
   text-decoration: none;
 }
+
+.site-header__upgrade {
+  text-decoration: none;
+  border-color: var(--brass-500);
+  color: var(--brass-300);
+}

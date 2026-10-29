@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
 import { createDocumentsRouter } from "./routes/documents.js";
+import { createBillingRouter, createBillingWebhookHandler } from "./routes/billing.js";
+import { createBilling } from "./services/billing.js";
 import { requireAuth } from "./lib/auth.js";
 import { HttpError } from "./lib/errors.js";
 import { startOfUtcMonth } from "./lib/supabase.js";
@@ -17,7 +19,9 @@ export function isOriginAllowed(origin, corsConfig) {
  * Build the Express app from injected dependencies, so tests can run it against mocks
  * (no live chain, R2 or Supabase).
  */
-export function createApp({ config, store, chain, storage, auth, entitlements, notarization, log }) {
+export function createApp({ config, store, chain, storage, auth, entitlements, notarization, log, billing }) {
+  // Billing is optional: without a Kelviq client, checkout answers 503 and plans stay as stored.
+  billing ??= createBilling({ config, store, kelviq: null, log });
   const app = express();
   app.disable("x-powered-by");
   app.set("trust proxy", config.trustProxy);
@@ -31,6 +35,8 @@ export function createApp({ config, store, chain, storage, auth, entitlements, n
       maxAge: 600,
     })
   );
+  // Kelviq webhooks need the raw body for signature checks, so they go before express.json().
+  app.post("/api/billing/webhook", ...createBillingWebhookHandler({ config, billing, log }));
   app.use(express.json({ limit: "16kb" }));
 
   app.get("/health", (_req, res) => {
@@ -60,6 +66,7 @@ export function createApp({ config, store, chain, storage, auth, entitlements, n
   /** GET /api/me — the signed-in user's plan, entitlements and this month's usage. */
   app.get("/api/me", requireAuth(auth, log), async (req, res, next) => {
     try {
+      await billing.syncPlanQuietly(req.user.id); // throttled; falls back to the stored plan
       const [ent, used] = await Promise.all([
         entitlements.getEntitlements(req.user.id),
         store.countMonthlyUsage(req.user.id),
@@ -67,6 +74,7 @@ export function createApp({ config, store, chain, storage, auth, entitlements, n
       res.json({
         user: req.user,
         plan: ent.plan,
+        billing: { enabled: billing.enabled },
         entitlements: ent,
         usage: { used, limit: ent.monthlyNotarizations, periodStart: startOfUtcMonth().toISOString() },
       });
@@ -75,6 +83,8 @@ export function createApp({ config, store, chain, storage, auth, entitlements, n
       next(new HttpError(503, "ACCOUNT_UNAVAILABLE", "Couldn't load your account. Please try again shortly."));
     }
   });
+
+  app.use("/api/billing", createBillingRouter({ auth, billing, log }));
 
   app.use(
     "/api/documents",

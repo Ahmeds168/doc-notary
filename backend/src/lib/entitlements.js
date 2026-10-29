@@ -5,21 +5,8 @@
  * (quotas before uploads and relayer spend) and the paid tiers. Routes never read
  * profiles.plan directly — they ask getEntitlements().
  *
- * ┌─────────────────────────────────────────────────────────────────────────────┐
- * │ KELVIQ INTEGRATION POINT                                                    │
- * │                                                                             │
- * │ Kelviq (merchant of record) is not integrated yet. To wire it up:           │
- * │  1. Implement createKelviqEntitlementProvider() below: call Kelviq's        │
- * │     entitlement / usage-check API for the user and map the result to a      │
- * │     PLAN_CATALOG key ("free" | "standard"). Cache briefly; on Kelviq        │
- * │     outage, fall back to the last synced profiles.plan.                     │
- * │  2. Add a signature-verified Kelviq webhook route that calls                │
- * │     store.setUserPlan(userId, plan, "kelviq", kelviqCustomerId) so          │
- * │     profiles.plan stays in sync (plan_source = 'kelviq').                   │
- * │  3. Set ENTITLEMENTS_PROVIDER=kelviq.                                       │
- * │ Usage counting stays in Postgres (reserve_notarization) either way; if      │
- * │ Kelviq should also meter usage, report it after an operation is confirmed.  │
- * └─────────────────────────────────────────────────────────────────────────────┘
+ * Kelviq billing (services/billing.js) keeps profiles.plan in sync with the user's Kelviq
+ * subscription, so the default "local" provider is the one to use in production.
  */
 
 const MB = 1024 * 1024;

@@ -35,7 +35,10 @@ export function planFeatures(plan) {
     `${plan.monthlyNotarizations} notarizations per month`,
     `Files up to ${formatMb(plan.maxFileSizeBytes)}`,
   ];
-  if (plan.certificates) features.push("PDF proof certificates");
+  if (plan.certificates) {
+    // Without history, the certificate is offered once, right after notarizing.
+    features.push(plan.historyDashboard ? "PDF proof certificates, downloadable any time" : "PDF proof certificate when you notarize");
+  }
   if (plan.historyDashboard) features.push("Notarization history, with downloads of your originals");
   if (plan.support === "email") features.push("Email support");
   features.push("Unlimited verification");

@@ -1,30 +1,78 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PLANS, STANDARD_PRICE, planFeatures } from "../../lib/plans.js";
-import { standardPlanAction } from "../../lib/billing.js";
-import { BUSINESS } from "../../lib/site.js";
+import { goToCheckout, goToBillingPortal, signupForUpgradeHref, billingErrorMessage } from "../../lib/billing.js";
+import { getMe } from "../../lib/api.js";
+import { useSession } from "../../lib/useSession.js";
 import { BetaNotice } from "./BetaNotice.jsx";
 import "./Page.css";
 
+/**
+ * Standard CTA. Signed out: sign up first, then continue to checkout (upgrade intent in the URL).
+ * Signed in: straight to Kelviq checkout. Already on Standard: manage the subscription instead.
+ */
 function StandardButton() {
-  const [showNote, setShowNote] = useState(false);
-  const action = standardPlanAction();
-  if (action.type === "checkout") {
+  const { session } = useSession();
+  const token = session?.access_token ?? null;
+  const [plan, setPlan] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!token) return undefined;
+    let active = true;
+    getMe(token)
+      .then((me) => active && setPlan(me.plan))
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [token]);
+
+  async function run(action) {
+    setBusy(true);
+    setError(null);
+    try {
+      await action();
+    } catch (err) {
+      setError(billingErrorMessage(err));
+      setBusy(false);
+    }
+  }
+
+  if (token && plan === "standard") {
     return (
-      <a className="plan-card__cta" href={action.href}>
-        Get Standard
-      </a>
+      <>
+        <p className="plan-card__note">You're on the Standard plan.</p>
+        <button type="button" className="plan-card__cta" disabled={busy} onClick={() => run(() => goToBillingPortal(token))}>
+          {busy ? "Opening…" : "Manage subscription"}
+        </button>
+        {error && <p className="plan-card__note" role="alert">{error}</p>}
+      </>
     );
   }
+
+  if (!token) {
+    return (
+      <>
+        <a className="plan-card__cta" href={signupForUpgradeHref("monthly")}>
+          Get Standard monthly
+        </a>
+        <a className="plan-card__alt" href={signupForUpgradeHref("yearly")}>
+          or pay {STANDARD_PRICE.yearly} yearly
+        </a>
+      </>
+    );
+  }
+
   return (
     <>
-      <button type="button" className="plan-card__cta" onClick={() => setShowNote(true)} aria-expanded={showNote}>
-        Get Standard
+      <button type="button" className="plan-card__cta" disabled={busy} onClick={() => run(() => goToCheckout("monthly", token))}>
+        {busy ? "Opening checkout…" : "Get Standard monthly"}
       </button>
-      {showNote && (
-        <p className="plan-card__note" role="status">
-          Paid plans launch shortly — email {BUSINESS.email} to get early access.
-        </p>
-      )}
+      <button type="button" className="plan-card__alt" disabled={busy} onClick={() => run(() => goToCheckout("yearly", token))}>
+        or pay {STANDARD_PRICE.yearly} yearly
+      </button>
+      {error && <p className="plan-card__note" role="alert">{error}</p>}
     </>
   );
 }
@@ -70,6 +118,11 @@ export function PricingPage() {
           <StandardButton />
         </section>
       </div>
+
+      <p className="pricing__tax">
+        Prices are in US dollars. Any sales tax or VAT that applies where you live is added at checkout. Payments are
+        handled by Kelviq, our merchant of record; you can cancel any time.
+      </p>
 
       <p>
         Monthly limits reset at the start of each calendar month (UTC). Failed notarization attempts don't count

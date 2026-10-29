@@ -327,7 +327,9 @@ values are never logged. See `backend/.env.example` for every option and its def
 | `RELAYER_DAILY_BUDGET_ETH` / `RELAYER_MAX_TX_COST_ETH` | | spend limits (defaults 0.05 / 0.002) |
 | `RATE_LIMIT_NOTARIZE_PER_MINUTE` / `RATE_LIMIT_VERIFY_PER_MINUTE` | | burst limits (5 / 60) |
 | `MAX_FILE_SIZE_BYTES` | | operator ceiling; plans can only be lower |
-| `ENTITLEMENTS_PROVIDER` | | `local` (default) or `kelviq` (not implemented, see below) |
+| `ENTITLEMENTS_PROVIDER` | | keep `local` (the Kelviq sync updates `profiles.plan`) |
+| `KELVIQ_API_KEY` | for paid plans | Kelviq **server** API key; without it checkout is off |
+| `KELVIQ_WEBHOOK_SECRET` | | signing secret for `/api/billing/webhook` (optional) |
 | `NETWORK_NAME` | | network name on certificates and in the UI (default `Ethereum Sepolia (test network)`) |
 | `EXPLORER_URL` | | block explorer base URL (default `https://sepolia.etherscan.io`) |
 | `NETWORK_IS_TESTNET` | | show the test-network notice. Defaults to true for known test chain ids (Sepolia, Holesky, Base Sepolia, …), false otherwise |
@@ -373,17 +375,29 @@ Render auto-deploys `main`, so **do these before merging**:
 
 ---
 
-## Kelviq billing (integration point, not yet wired)
+## Kelviq billing
 
-`profiles.plan` is the synced plan value. `backend/src/lib/entitlements.js` has a clearly marked
-**KELVIQ INTEGRATION POINT** describing the three steps:
+Kelviq is the merchant of record and the source of truth for who has paid; `profiles.plan` is
+the local copy every route reads. The Kelviq **customer ID is the Supabase user ID**, so every
+checkout is tied to the signed-in account.
 
-1. implement `createKelviqEntitlementProvider()` against Kelviq's entitlement API;
-2. add a signature-verified webhook that calls `store.setUserPlan(userId, plan, "kelviq", customerId)`;
-3. set `ENTITLEMENTS_PROVIDER=kelviq`.
+- `POST /api/billing/checkout {period: "monthly"|"yearly"}` creates the Kelviq customer if
+  needed and returns a hosted checkout URL for `standard-plan`. Success returns to
+  `PUBLIC_APP_URL/?checkout=success`.
+- `POST /api/billing/sync` re-reads the user's subscriptions from Kelviq (called on return
+  from checkout). `/api/me` does the same at most every `BILLING_SYNC_INTERVAL_MS`, and keeps
+  the stored plan if Kelviq is unreachable.
+- `POST /api/billing/portal` returns Kelviq's customer portal (payment method, cancel).
+- `POST /api/billing/webhook` (optional, needs `KELVIQ_WEBHOOK_SECRET`) verifies the signature
+  and re-syncs that customer from the API. The payload itself never grants a plan.
 
-Usage counting stays in Postgres either way. `backend/scripts/set-plan.js` uses the same
-`setUserPlan()` path for manual changes until then.
+A subscription counts as Standard while it is active (or past due), or after cancellation until
+its paid period ends; refunded or expired subscriptions drop the account to Free. Plans set with
+`scripts/set-plan.js` (`plan_source = 'manual'`) are never overwritten by the sync.
+
+Frontend: the Pricing page sends signed-out visitors to `/?signup=1&upgrade=<period>` and
+continues to checkout once they are signed in (the choice survives email confirmation for an
+hour). Standard users get **Billing** in the header and **Manage subscription** on Pricing.
 
 ---
 

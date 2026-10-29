@@ -192,6 +192,16 @@ export function loadConfig(env = process.env) {
       staleAfterMs: intVar(env, "RECONCILE_STALE_AFTER_MS", 10 * 60_000, problems, { min: 1000 }),
     },
 
+    // Kelviq billing. Without KELVIQ_API_KEY paid checkout is simply switched off.
+    billing: {
+      kelviqApiKey: (env.KELVIQ_API_KEY || "").trim() || null,
+      kelviqWebhookSecret: (env.KELVIQ_WEBHOOK_SECRET || "").trim() || null,
+      kelviqBaseUrl: urlVar(env, "KELVIQ_API_URL", "https://api.kelviq.com", problems),
+      planIdentifier: (env.KELVIQ_STANDARD_PLAN || "standard-plan").trim(),
+      // How often /api/me re-checks a user's subscription with Kelviq.
+      syncIntervalMs: intVar(env, "BILLING_SYNC_INTERVAL_MS", 10 * 60_000, problems, { min: 0 }),
+    },
+
     entitlements: {
       // "local" reads profiles.plan. "kelviq" is the future billing integration seam.
       provider: env.ENTITLEMENTS_PROVIDER || "local",
@@ -229,5 +239,7 @@ export function secretValues(config) {
     config.supabase.serviceRoleKey,
     config.chain.privateKey,
     config.chain.rpcUrl, // RPC URLs usually embed an API key
+    config.billing?.kelviqApiKey,
+    config.billing?.kelviqWebhookSecret,
   ].filter((v) => typeof v === "string" && v.length >= 8);
 }

@@ -6,7 +6,7 @@ export function RefundPage() {
   return (
     <LegalPage title="Refund Policy">
       <p>
-        This policy covers Doc Notary's paid plans. The Free plan has no charges. Paid plans are launching shortly.
+        This policy covers Doc Notary's paid plans. The Free plan has no charges.
       </p>
 
       <BetaNotice />
