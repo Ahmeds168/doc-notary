@@ -27,5 +27,6 @@ export async function createMigratedDb({ beforeMigrations } = {}) {
   if (beforeMigrations) await beforeMigrations(db);
   await db.exec(await readFile(`${root}migrations/001_auth_ownership_operations.sql`, "utf8"));
   await db.exec(await readFile(`${root}migrations/002_explicit_grants.sql`, "utf8"));
+  await db.exec(await readFile(`${root}migrations/003_funnel_events.sql`, "utf8"));
   return db;
 }

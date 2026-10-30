@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { PLANS, STANDARD_PRICE, planFeatures } from "../../lib/plans.js";
-import { goToCheckout, goToBillingPortal, signupForUpgradeHref, billingErrorMessage } from "../../lib/billing.js";
+import { goToCheckout, goToBillingPortal, signupForUpgradeHref, billingErrorMessage, trackFunnel } from "../../lib/billing.js";
 import { getMe } from "../../lib/api.js";
 import { useSession } from "../../lib/useSession.js";
 import { BetaNotice } from "./BetaNotice.jsx";
@@ -54,10 +54,10 @@ function StandardButton() {
   if (!token) {
     return (
       <>
-        <a className="plan-card__cta" href={signupForUpgradeHref("monthly")}>
+        <a className="plan-card__cta" href={signupForUpgradeHref("monthly")} onClick={() => trackFunnel("pricing_cta", { period: "monthly", signed_in: "no" })}>
           Get Standard monthly
         </a>
-        <a className="plan-card__alt" href={signupForUpgradeHref("yearly")}>
+        <a className="plan-card__alt" href={signupForUpgradeHref("yearly")} onClick={() => trackFunnel("pricing_cta", { period: "yearly", signed_in: "no" })}>
           or pay {STANDARD_PRICE.yearly} yearly
         </a>
       </>
@@ -66,10 +66,16 @@ function StandardButton() {
 
   return (
     <>
-      <button type="button" className="plan-card__cta" disabled={busy} onClick={() => run(() => goToCheckout("monthly", token))}>
+      <button type="button" className="plan-card__cta" disabled={busy} onClick={() => {
+          trackFunnel("pricing_cta", { period: "monthly", signed_in: "yes" });
+          run(() => goToCheckout("monthly", token));
+        }}>
         {busy ? "Opening checkout…" : "Get Standard monthly"}
       </button>
-      <button type="button" className="plan-card__alt" disabled={busy} onClick={() => run(() => goToCheckout("yearly", token))}>
+      <button type="button" className="plan-card__alt" disabled={busy} onClick={() => {
+          trackFunnel("pricing_cta", { period: "yearly", signed_in: "yes" });
+          run(() => goToCheckout("yearly", token));
+        }}>
         or pay {STANDARD_PRICE.yearly} yearly
       </button>
       {error && <p className="plan-card__note" role="alert">{error}</p>}

@@ -36,6 +36,12 @@ export function createBilling({ config, store, kelviq, log, now = () => Date.now
   const enabled = Boolean(kelviq);
   const lastSync = new Map(); // userId -> ms
 
+  /** Best-effort anonymous funnel count; never fails the request. */
+  function funnel(event, period = null) {
+    if (!store.recordFunnelEvent) return;
+    store.recordFunnelEvent(event, period).catch((err) => log.warn(`[billing] couldn't record ${event}`, err));
+  }
+
   function requireEnabled() {
     if (!enabled) throw new HttpError(503, "BILLING_UNAVAILABLE", "Paid plans aren't available right now.");
   }
@@ -90,6 +96,7 @@ export function createBilling({ config, store, kelviq, log, now = () => Date.now
     if (plan !== current || (plan === "standard" && profile?.plan_source !== "kelviq")) {
       await store.setUserPlan(userId, plan, "kelviq", userId);
       log.info(`[billing] plan for user changed: ${current} -> ${plan}`);
+      if (plan !== current) funnel(plan === "standard" ? "upgraded" : "downgraded");
     }
     return plan;
   }
@@ -123,6 +130,8 @@ export function createBilling({ config, store, kelviq, log, now = () => Date.now
     });
     const url = pick(session, "checkoutUrl");
     if (!url) throw new Error("Kelviq didn't return a checkout URL.");
+    funnel("checkout_started", period);
+    log.info(`[billing] checkout started (${period})`);
     return { url };
   }
 
@@ -155,7 +164,7 @@ export function createBilling({ config, store, kelviq, log, now = () => Date.now
     return { synced: true };
   }
 
-  return { enabled, syncPlan, syncPlanQuietly, createCheckout, createPortal, handleWebhookEvent };
+  return { enabled, syncPlan, syncPlanQuietly, createCheckout, createPortal, handleWebhookEvent, funnel };
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

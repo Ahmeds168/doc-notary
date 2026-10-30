@@ -105,6 +105,12 @@ export function createStore(supabase) {
       );
     },
 
+    /** Anonymous funnel step (see migrations/003_funnel_events.sql). */
+    async recordFunnelEvent(event, period = null) {
+      const { error } = await supabase.from("funnel_events").insert({ event, period });
+      if (error) throw Object.assign(new Error(error.message), { code: error.code, name: "SupabaseError" });
+    },
+
     async getDocumentByHash(documentHash) {
       return unwrap(await supabase.from("documents").select("*").eq("document_hash", documentHash).maybeSingle());
     },

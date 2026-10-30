@@ -80,6 +80,23 @@ test("checkout creates the Kelviq customer from the user and returns the hosted 
   assert.equal(session.successUrl, "https://doc-notary.vercel.app/?checkout=success");
 });
 
+test("the funnel counts checkout starts, returns and upgrades without storing who", async () => {
+  const h = await setup();
+  const { user, token } = await h.signUp();
+  await request(h.app).post("/api/billing/checkout").set(auth(token)).send({ period: "yearly" });
+  h.kelviq.subscriptions.set(user.id, [activeSub()]);
+  await request(h.app).post("/api/billing/sync?from=checkout").set(auth(token));
+  await new Promise((r) => setTimeout(r, 20)); // best-effort writes are not awaited
+  const { rows } = await h.pg.db.query("select event, period from funnel_events order by id");
+  assert.deepEqual(rows, [
+    { event: "checkout_started", period: "yearly" },
+    { event: "checkout_returned", period: null },
+    { event: "upgraded", period: null },
+  ]);
+  const { rows: cols } = await h.pg.db.query("select column_name from information_schema.columns where table_name = 'funnel_events'");
+  assert.deepEqual(cols.map((c) => c.column_name).sort(), ["created_at", "event", "id", "period"]);
+});
+
 test("checkout rejects bad periods, anonymous users, existing subscribers, and missing configuration", async () => {
   const h = await setup();
   const { token } = await h.signUp();

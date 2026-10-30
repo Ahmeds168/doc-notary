@@ -395,6 +395,11 @@ A subscription counts as Standard while it is active (or past due), or after can
 its paid period ends; refunded or expired subscriptions drop the account to Free. Plans set with
 `scripts/set-plan.js` (`plan_source = 'manual'`) are never overwritten by the sync.
 
+Funnel (anonymous, no ids or emails): Vercel Web Analytics custom events `pricing_cta`
+(period, signed_in), `checkout_redirect` (period) and `checkout_return` (result), plus backend
+rows in `funnel_events` (`checkout_started`, `checkout_returned`, `upgraded`, `downgraded`;
+migration 003), which work on any Vercel plan.
+
 Frontend: the Pricing page sends signed-out visitors to `/?signup=1&upgrade=<period>` and
 continues to checkout once they are signed in (the choice survives email confirmation for an
 hour). Standard users get **Billing** in the header and **Manage subscription** on Pricing.

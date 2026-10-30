@@ -28,6 +28,10 @@ export async function createPgStore() {
   const normalizeOp = (row) => row && { ...row, reserved_cost_wei: row.reserved_cost_wei?.toString(), actual_cost_wei: row.actual_cost_wei?.toString() ?? null };
 
   const store = {
+    recordFunnelEvent: guard("recordFunnelEvent", async (event, period = null) => {
+      await db.query("insert into funnel_events (event, period) values ($1, $2)", [event, period]);
+    }),
+
     getProfile: guard("getProfile", (userId) => one("select id, plan, plan_source from profiles where id = $1", [userId])),
 
     setUserPlan: guard("setUserPlan", (userId, plan, source) =>

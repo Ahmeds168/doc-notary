@@ -41,6 +41,8 @@ export function createBillingRouter({ auth, billing, log }) {
 
   router.post("/sync", authed, limiter, async (req, res, next) => {
     try {
+      // The frontend calls this only on return from Kelviq checkout.
+      if (req.query.from === "checkout") billing.funnel("checkout_returned");
       const plan = await billing.syncPlan(req.user.id, { force: true }).catch(kelviqFailure("sync"));
       res.json({ plan });
     } catch (err) {

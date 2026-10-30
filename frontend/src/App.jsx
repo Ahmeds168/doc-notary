@@ -6,7 +6,7 @@ import { Ledger } from "./components/Ledger.jsx";
 import { WakingBanner } from "./components/WakingBanner.jsx";
 import { ConfirmBanner } from "./components/ConfirmBanner.jsx";
 import { getStats, getMe, syncBilling } from "./lib/api.js";
-import { readUpgradeIntent, readCheckoutReturn, clearBillingParams, goToCheckout, billingErrorMessage } from "./lib/billing.js";
+import { readUpgradeIntent, readCheckoutReturn, clearBillingParams, goToCheckout, billingErrorMessage, trackFunnel } from "./lib/billing.js";
 import { CheckoutBanner } from "./components/CheckoutBanner.jsx";
 import { useSession } from "./lib/useSession.js";
 import { supabase } from "./lib/supabase.js";
@@ -129,7 +129,10 @@ function HomePage() {
     clearBillingParams();
     let active = true;
     syncBilling(token)
-      .then(({ plan }) => active && setBillingNotice(plan === "standard" ? "upgraded" : "pending"))
+      .then(({ plan }) => {
+        trackFunnel("checkout_return", { result: plan === "standard" ? "upgraded" : "pending" });
+        if (active) setBillingNotice(plan === "standard" ? "upgraded" : "pending");
+      })
       .catch(() => active && setBillingNotice("pending"))
       .finally(() => active && setRefreshKey((k) => k + 1));
     return () => {

@@ -81,7 +81,7 @@ export async function openBillingPortal(token) {
 
 /** Re-check the subscription with Kelviq right now (used after returning from checkout). */
 export async function syncBilling(token) {
-  const res = await fetch(`${API_BASE_URL}/api/billing/sync`, { method: "POST", headers: authHeaders(token) });
+  const res = await fetch(`${API_BASE_URL}/api/billing/sync?from=checkout`, { method: "POST", headers: authHeaders(token) });
   return handleResponse(res);
 }
 

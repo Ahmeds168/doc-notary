@@ -1,4 +1,14 @@
+import { track } from "@vercel/analytics";
 import { startCheckout, openBillingPortal } from "./api.js";
+
+/** Anonymous funnel events in Vercel Web Analytics (no ids or emails). Never throws. */
+export function trackFunnel(name, data) {
+  try {
+    track(name, data);
+  } catch {
+    /* analytics must never break billing */
+  }
+}
 
 export const PERIODS = Object.freeze(["monthly", "yearly"]);
 
@@ -64,6 +74,7 @@ export function signupForUpgradeHref(period) {
 /** Create a Kelviq checkout for this user and go there. Resolves only on failure. */
 export async function goToCheckout(period, token, navigate = (url) => window.location.assign(url)) {
   const { url } = await startCheckout(period, token);
+  trackFunnel("checkout_redirect", { period });
   navigate(url);
 }
 
