@@ -80,7 +80,7 @@ describe("site pages", () => {
   it("legal pages show the last-updated date and the closing note", () => {
     for (const path of ["/terms", "/privacy", "/refund-policy"]) {
       renderAt(path);
-      expect(screen.getByText("Last updated: 28 October 2026")).toBeTruthy();
+      expect(screen.getByText("Last updated: 31 October 2026")).toBeTruthy();
       expect(screen.getByText(/provided in good faith for a small independent service/)).toBeTruthy();
       cleanup();
     }
@@ -118,8 +118,20 @@ describe("footer", () => {
       ["Refund Policy", "/refund-policy"],
     ]);
     expect(footer.textContent).toContain(
-      "© 2026 Syed Ahmed Ali Shah, trading as Doc Notary · Sukkur, Pakistan · support@doc-notary.com"
+      "© 2026 Doc Notary · Pakistan · support@doc-notary.com"
     );
+  });
+});
+
+describe("operator details", () => {
+  it("keeps the operator's name off public pages but names them in the Terms", () => {
+    renderAt("/about");
+    expect(document.body.textContent).not.toMatch(/Syed|Sukkur|ahmedalishah/);
+    expect(document.body.textContent).toMatch(/independent software service based in Pakistan/);
+    cleanup();
+    renderAt("/terms");
+    expect(document.body.textContent).toMatch(/Syed Ahmed Ali Shah, trading as Doc Notary/);
+    expect(document.body.textContent).not.toMatch(/Sukkur/);
   });
 });
 

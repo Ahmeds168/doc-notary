@@ -6,7 +6,7 @@ export function PrivacyPage() {
     <LegalPage title="Privacy Policy">
       <p>
         This policy explains what Doc Notary collects, why, who processes it, and what becomes public. Doc Notary is
-        run by {BUSINESS.legalName} ({BUSINESS.city}, {BUSINESS.country}). We don't sell your data and we don't use
+        run by {BUSINESS.legalName} ({BUSINESS.country}). We don't sell your data and we don't use
         advertising trackers.
       </p>
 

@@ -13,7 +13,7 @@ export function Footer() {
         ))}
       </nav>
       <p className="site-footer__legal">
-        © 2026 {BUSINESS.legalName} · {BUSINESS.city}, {BUSINESS.country} ·{" "}
+        © 2026 {BUSINESS.tradingName} · {BUSINESS.country} ·{" "}
         <span className="site-footer__email">{BUSINESS.email}</span>
       </p>
     </footer>

@@ -9,7 +9,7 @@ export function TermsPage() {
     <LegalPage title="Terms of Service">
       <p>
         These terms apply when you use Doc Notary at doc-notary.com (the "service"). The service is provided by{" "}
-        {BUSINESS.legalName}, a {BUSINESS.form} based in {BUSINESS.city}, {BUSINESS.country} ("we", "us"). By using
+        {BUSINESS.legalName}, a {BUSINESS.form} based in {BUSINESS.country} ("we", "us"). By using
         the service you agree to these terms.
       </p>
 
@@ -120,7 +120,7 @@ export function TermsPage() {
 
       <h2>12. Contact</h2>
       <p>
-        {BUSINESS.legalName}, {BUSINESS.city}, {BUSINESS.region}, {BUSINESS.country}.{" "}
+        {BUSINESS.legalName}, {BUSINESS.country}.{" "}
         Email: <a href={`mailto:${BUSINESS.email}`}>{BUSINESS.email}</a>.
       </p>
     </LegalPage>

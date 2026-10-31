@@ -9,12 +9,8 @@ export function AboutPage() {
 
       <h2>Who runs it</h2>
       <p>
-        Doc Notary is run by {BUSINESS.operator}, a software developer in {BUSINESS.city}, {BUSINESS.country}, who
-        operates it as a {BUSINESS.form}. More of {BUSINESS.operator}'s work is at{" "}
-        <a href={BUSINESS.portfolio} target="_blank" rel="noreferrer">
-          ahmedalishah.vercel.app
-        </a>
-        .
+        Doc Notary is an independent software service based in {BUSINESS.country}. The legal operator is named in
+        the <a href="/terms">Terms of Service</a>.
       </p>
 
       <h2>What it does</h2>
@@ -41,7 +37,7 @@ export function AboutPage() {
           Email: <a href={`mailto:${BUSINESS.email}`}>{BUSINESS.email}</a>
         </li>
         <li>
-          Based in: {BUSINESS.city}, {BUSINESS.region}, {BUSINESS.country}
+          Based in: {BUSINESS.country}
         </li>
         <li>We aim to reply {BUSINESS.replyTime}.</li>
       </ul>

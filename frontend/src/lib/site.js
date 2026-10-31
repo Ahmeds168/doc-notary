@@ -1,20 +1,22 @@
-/** Business details shown in the footer, About/Contact and legal pages. Change them here only. */
+/**
+ * Business details. Change them here only.
+ * Public pages (footer, About) show only the trading name and country; the operator's name
+ * appears only in the legal pages (Terms, Privacy), where the contracting party must be named.
+ * When Doc Notary is registered as a business, put the business name in legalName.
+ */
 export const BUSINESS = Object.freeze({
   operator: "Syed Ahmed Ali Shah",
   tradingName: "Doc Notary",
   legalName: "Syed Ahmed Ali Shah, trading as Doc Notary",
   form: "sole proprietor",
-  city: "Sukkur",
-  region: "Sindh",
   country: "Pakistan",
   email: "support@doc-notary.com",
   replyTime: "within 2 business days",
-  portfolio: "https://ahmedalishah.vercel.app",
   siteUrl: "https://www.doc-notary.com",
 });
 
 /** Shown as "Last updated" on Terms, Privacy and Refund Policy. */
-export const LEGAL_EFFECTIVE_DATE = "28 October 2026";
+export const LEGAL_EFFECTIVE_DATE = "31 October 2026";
 
 export const REFUND_WINDOW = "14 days";
 
